@@ -39,7 +39,7 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 sim: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
 	@$^
-
+	@echo "all done"
 all:
 	@echo "Write this Makefile by your self."
 
