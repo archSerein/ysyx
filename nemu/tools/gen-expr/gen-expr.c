@@ -25,14 +25,40 @@ static char buf[65536] = {};
 static char code_buf[65536 + 128] = {}; // a little larger than `buf`
 static char *code_format =
 "#include <stdio.h>\n"
+"#include <stdint.h>\n"
 "int main() { "
-"  unsigned result = %s; "
+"  uint32_t result = %s; "
 "  printf(\"%%u\", result); "
 "  return 0; "
 "}";
 
+static int choose(int n)
+{
+  return rand() % n;
+}
+
+static void gen_num()
+{
+  snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%du ", choose(100));
+}
+
+static void gen(char ch)
+{
+  snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%c ", ch);
+}
+
+static void gen_rand_op()
+{
+  char ops[4] = "+-*/";
+  gen(ops[choose(4)]);
+}
+
 static void gen_rand_expr() {
-  buf[0] = '\0';
+  switch (choose(3)) {
+    case 0: gen_num(); break;
+    case 1: gen('('); gen_rand_expr(); gen(')'); break;
+    default: gen_rand_expr(); gen_rand_op(); gen_rand_expr(); break;
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -44,6 +70,8 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
+    sprintf(buf, "%s", "");
+    
     gen_rand_expr();
 
     sprintf(code_buf, code_format, buf);
@@ -53,7 +81,7 @@ int main(int argc, char *argv[]) {
     fputs(code_buf, fp);
     fclose(fp);
 
-    int ret = system("gcc /tmp/.code.c -o /tmp/.expr");
+    int ret = system("gcc -Werror /tmp/.code.c -o /tmp/.expr");
     if (ret != 0) continue;
 
     fp = popen("/tmp/.expr", "r");

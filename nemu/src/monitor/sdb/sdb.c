@@ -19,6 +19,7 @@
 #include <readline/history.h>
 #include "sdb.h"
 
+extern NEMUState nemu_state;
 static int is_batch_mode = false;
 
 void init_regex();
@@ -54,6 +55,72 @@ static int cmd_q(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_si(char *args)
+{
+  uint64_t N;
+  if(args != NULL)
+    N = atoi(args);
+  else {
+    N = 1;
+  }
+  cpu_exec(N);
+  return 0;
+}
+
+static int cmd_info(char *args)
+{
+  if(strcmp(args, "r") == 0)
+  {
+    isa_reg_display();
+  }
+  else {
+    info_w();
+  }
+  return 0;
+}
+
+static int cmd_x(char *args)
+{
+  int N = atoi(strtok(args, " "));
+  char *addr = strtok(NULL, "");
+  bool success = true;
+  uint32_t result = expr(addr, &success);
+  sprintf(addr, "0x%x", result);
+  paddr_t vaddr = (paddr_t)strtol(addr, NULL, 16);
+  for(int i = 0; i < N; i++)
+  {
+    word_t data = vaddr_read((vaddr + 4 * i), 4);
+    printf("0x%08x\n", data);
+  }
+
+  return 0;
+}
+
+static int cmd_p(char *args)
+{
+  bool success = true;
+  uint32_t result = expr(args, &success);
+  if(success)
+  {
+    printf("%s -> %d\n", args, result);
+    return 0;
+  }
+  else {
+    return -1;
+  }
+}
+
+static int cmd_w(char *args)
+{
+  if(new_wp(args))
+    return 0;
+  else return -1;
+}
+
+static int cmd_d(char *args)
+{
+  return free_wp(atoi(args));
+}
 static struct {
   const char *name;
   const char *description;
@@ -62,6 +129,12 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
+  {"si", "Lets the program pause after executing N instructions in a single step.When N is not given, the default is 1.", cmd_si},
+  {"info", "Printing Register Status or watchpoint information", cmd_info},
+  {"x", "Outputs N consecutive 4-bytes in hexadecimal form", cmd_x},
+  {"p", "Find the value of the expression EXPR", cmd_p},
+  {"w", "Suspends program execution when the value of expression EXPR changes.", cmd_w},
+  {"d", "Delete the monitoring point with serial number N.", cmd_d},
 
   /* TODO: Add more commands */
 
@@ -97,6 +170,28 @@ void sdb_set_batch_mode() {
 }
 
 void sdb_mainloop() {
+  /*
+  int count = 0;
+  FILE *in = fopen("/home/serein/ysyx/ysyx-workbench/nemu/tools/gen-expr/build/input", "r");
+  assert(in);
+  char str[65536];
+
+  bool success = true;
+  while (fgets(str, sizeof(str), in) != NULL){
+    str[strlen(str)-1] = '\0';
+    uint32_t sum = (uint32_t)atoi(strtok(str, " "));
+    char *expression = strtok(NULL, "");
+    uint32_t result = expr(expression, &success);
+    if(result != sum)
+    {
+      printf("%s -> %u ? %u\n", expression, sum, result);
+      ++count;
+    }
+  }
+
+  fclose(in);
+  printf("count->%d\n", count);
+  */
   if (is_batch_mode) {
     cmd_c(NULL);
     return;
@@ -125,7 +220,11 @@ void sdb_mainloop() {
     int i;
     for (i = 0; i < NR_CMD; i ++) {
       if (strcmp(cmd, cmd_table[i].name) == 0) {
-        if (cmd_table[i].handler(args) < 0) { return; }
+        if (cmd_table[i].handler(args) < 0) {
+          if(strcmp(cmd, "q") == 0)
+            nemu_state.state = NEMU_QUIT;
+          return; 
+        }
         break;
       }
     }

@@ -17,7 +17,23 @@
 #define __SDB_H__
 
 #include <common.h>
+#include <memory/vaddr.h>
 
-word_t expr(char *e, bool *success);
+typedef struct watchpoint {
+  int NO;
+  uint32_t result;
+  char str[32];
+  int hit_count;
+  bool enable;
+  struct watchpoint *next;
+
+  /* TODO: Add more members if necessary */
+
+} WP;
+
+uint32_t expr(char *e, bool *success);
+WP* new_wp(char *e);
+int free_wp(int NO);
+void info_w();
 
 #endif
