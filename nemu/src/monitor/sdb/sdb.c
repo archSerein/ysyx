@@ -102,7 +102,7 @@ static int cmd_p(char *args)
   uint32_t result = expr(args, &success);
   if(success)
   {
-    printf("%s -> %d\n", args, result);
+    printf("%s -> %d\t%x\n", args, result, result);
     return 0;
   }
   else {
