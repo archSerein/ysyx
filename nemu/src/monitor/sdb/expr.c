@@ -254,7 +254,7 @@ uint32_t eval(int p, int q, bool *success)
     switch (tokens[p].type) {
       case TK_NUMBER: return atoi(tokens[p].str);
       case TK_HNUMBER: return strtol(tokens[p].str, NULL, 16);
-      case TK_REG: return isa_reg_str2val(tokens[p].str, success);
+      case TK_REG: return isa_reg_str2val(tokens[p].str);
     }
   }
   else if (check_parentheses(p, q, &iseval) == true){

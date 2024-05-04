@@ -17,6 +17,7 @@
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <locale.h>
+#include <regex.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -29,7 +30,18 @@ CPU_state cpu = {};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
+#ifdef CONFIG_ITRACE
+static int iringbufindex = 0;
+static char iringbuf[iringlength][128];
+#endif // CONFIG_ITRACE
+#ifdef CONFIG_FTRACE
+  extern struct elf ftrace[128];
+  static struct info func_stack[512] = {};
+  static int ftraceindex = 0;
+  void print_func_stack();
+#endif
 
+void isa_exec_err_display();
 void device_update();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
@@ -52,8 +64,99 @@ static void exec_once(Decode *s, vaddr_t pc) {
   s->snpc = pc;
   isa_exec_once(s);
   cpu.pc = s->dnpc;
+#ifdef CONFIG_FTRACE
+  char *addr = strtok(s->logbuf, " ");
+  char *op = strtok(s->logbuf + 24, "\t");
+  if(!strcmp(op, "jal"))
+  {
+    for(int i = 0; i < 128; i++)
+    { 
+      char tmp[11];
+      sprintf(tmp, "0x%08x", ftrace[i].addr);
+      if(!strcmp(tmp, s->logbuf + 32))
+      {
+        func_stack[ftraceindex].addr = ftrace[i].addr;
+        strcpy(func_stack[ftraceindex].name, ftrace[i].name);
+        strcpy(func_stack[ftraceindex].pc, addr);
+        ++ftraceindex;
+        break;
+      }
+    }
+  }
+  else if(!strcmp(op, "jalr"))
+  {
+    regex_t reg;
+    int status;
+    regmatch_t pmatch[1];
+    const char *pattern = "0\\([a-z0-9]+\\)";
+    char *buf = s->logbuf + 32;
+    
+    // 编译正则表达式
+    regcomp(&reg, pattern, REG_EXTENDED);
+    status = regexec(&reg, buf, 1, pmatch, 0);
+    if(status == -1)
+      printf("match miss\n");
+    int start = pmatch[0].rm_so;
+    int end = pmatch[0].rm_eo;
+    if(end - start)
+    {
+      char src1[3] = {};
+      strncpy(src1, buf + start + 2, 2);
+      src1[2] = '\0';
+      uint32_t call = isa_reg_str2val(src1-1);
+      if(!strcmp(src1, "ra"))
+      {
+        for(int i = 0; i < 128; i++)
+        { 
+          char call_addr[12] = {};
+          sprintf(call_addr, "0x%08x:", call - 4);
+          if(!strcmp(call_addr, func_stack[i].pc))
+          {
+            strcpy(func_stack[ftraceindex].name, func_stack[i].name);
+            func_stack[ftraceindex].addr = 0;
+            strcpy(func_stack[ftraceindex].pc, addr);
+            ++ftraceindex;
+            break;
+          }
+        }
+      }
+      else
+      {
+        for(int i = 0; i < 128; i++)
+        { 
+          if(ftrace[i].addr == call)
+          {
+            func_stack[ftraceindex].addr = ftrace[i].addr;
+            strcpy(func_stack[ftraceindex].name, ftrace[i].name);
+            strcpy(func_stack[ftraceindex].pc, addr);
+            ++ftraceindex;
+            break;
+          }
+        }
+      }
+      regfree(&reg);
+    }
+    else
+    {
+      for(int i = 0; i < 128; i++)
+      { 
+        char tmp[11];
+        sprintf(tmp, "0x%08x", ftrace[i].addr);
+        if(!strcmp(tmp, s->logbuf + 32))
+        {
+          func_stack[ftraceindex].addr = ftrace[i].addr;
+          strcpy(func_stack[ftraceindex].name, ftrace[i].name);
+          strcpy(func_stack[ftraceindex].pc, addr);
+          ++ftraceindex;
+          break;
+        }
+      }
+    }
+  }
+#endif
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
+  printf("p->%ld\n", strlen(p));
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
   int ilen = s->snpc - s->pc;
   int i;
@@ -72,6 +175,11 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst.val, ilen);
+
+  int len = sprintf(iringbuf[iringbufindex%iringlength], "0x%08x: ", pc);
+  len += sprintf(iringbuf[iringbufindex%iringlength] + len, "%s", p);
+  sprintf(iringbuf[iringbufindex%iringlength] + len, "\t\t%08x", s->isa.inst.val);
+  ++iringbufindex;
 #else
   p[0] = '\0'; // the upstream llvm does not support loongarch32r
 #endif
@@ -99,6 +207,9 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
+  #ifdef CONFIG_ITRACE
+    isa_exec_err_display();
+  #endif
   isa_reg_display();
   statistic();
 }
@@ -123,7 +234,8 @@ void cpu_exec(uint64_t n) {
   switch (nemu_state.state) {
     case NEMU_RUNNING: nemu_state.state = NEMU_STOP; break;
 
-    case NEMU_END: case NEMU_ABORT:
+    case NEMU_ABORT:
+    case NEMU_END:
       Log("nemu: %s at pc = " FMT_WORD,
           (nemu_state.state == NEMU_ABORT ? ANSI_FMT("ABORT", ANSI_FG_RED) :
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
@@ -133,3 +245,44 @@ void cpu_exec(uint64_t n) {
     case NEMU_QUIT: statistic();
   }
 }
+
+#ifdef CONFIG_ITRACE
+void
+isa_exec_err_display()
+{
+  int begin = (iringbufindex / iringlength == 0)  ?  0 : iringbufindex;
+  int end = (iringbufindex%iringlength) - 1;
+  while(begin%iringlength != end)
+  {
+    Log("%s", iringbuf[begin%iringlength]);
+    ++begin;
+  }
+  Log("%s", iringbuf[begin%iringlength]);
+}
+#endif
+
+#ifdef CONFIG_FTRACE
+void print_func_stack()
+{
+  int count = 0;
+  for(int i = 0; i < ftraceindex; i++)
+  {
+    if(func_stack[i].addr)
+    {
+      printf("%s\t", func_stack[i].pc); 
+      for(int j = 0; j < count; j++)
+        printf("\t");
+      printf("call[%s@%0x08x]\n", func_stack[i].name, func_stack[i].addr);
+      ++count;
+    }
+    else
+    {
+      --count;
+      printf("%s\t", func_stack[i].pc); 
+      for(int j = 0; j < count; j++)
+        printf("\t");
+      printf("ret[%s]\n", func_stack[i].name);
+    }
+  }
+}
+#endif

@@ -1,39 +1,53 @@
-// #include <nvboard.h>
-#include <Vtop.h>
-#include <iostream>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <getopt.h>
+#include "pmem.hpp"
+#include "defs.hpp"
+#include "ftrace.hpp"
 
-static TOP_NAME top;
-int e = 0;
-// void nvboard_bind_all_pins(Vtop* top);
+const char ref_so_file[] = "/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so";
+extern "C" void init_disasm(const char *triple);
 
-void single_cycle() {
-    top.clk = 0;
-    top.eval();
-    top.clk = 1;
-    top.eval();
-}
-
-void reset(int n) {
-    top.rst = 1;
-    while (n-- > 0)
-        single_cycle();
-    top.rst = 0;
-}
-
-extern "C" void ending(int num) { e = num; }
-
-int main() {
-    // nvboard_bind_all_pins(&top);
-    // nvboard_init();
-
-    reset(10);
-
-    while (1) {
-        // nvboard_update();
-        if (e)
-            break;
-        single_cycle();
-        printf("%d\n", top.out);
+static int parse_args(int argc, char *argv[]) {
+  const struct option table[] = {
+    {"batch"    , no_argument      , NULL, 'b'},
+    {0          , 0                , NULL,  0 },
+  };
+  int o;
+  while ( (o = getopt_long(argc, argv, "-b", table, NULL)) != -1) {
+    switch (o) {
+      case 'b': sdb_set_batch_mode(); break;
     }
-    return 0;
+  }
+  return 0;
+}
+
+int main(int argc, char *argv[], char *env[]) {
+    sim_init();
+    if(argc < 3)
+    {
+        printf("need a argument to initial pmem\n");
+        exit(0);
+    }
+
+    long size = init_mem(argv[1]);
+    parse_elf(argv[2]);
+    init_sdb();
+    init_disasm("riscv32-pc-linux-gnu");
+
+    reset(2);
+    #ifdef CONFIG_DIFFTEST
+        init_difftest(ref_so_file, size, 1234);
+    #endif // CONFIG_DIFFTEST
+
+    parse_args(argc, argv);
+    
+    // 进入sdb
+    sdb_mainloop();
+
+    sim_exit();
+    // 释放mem申请的内存
+    free();
+    return is_exit_status_bad();
 }

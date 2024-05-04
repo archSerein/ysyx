@@ -31,11 +31,12 @@ void init_isa();
 // reg
 extern CPU_state cpu;
 void isa_reg_display();
-word_t isa_reg_str2val(const char *name, bool *success);
+word_t isa_reg_str2val(const char *name);
 
 // exec
 struct Decode;
 int isa_exec_once(struct Decode *s);
+extern void isa_exec_err_display();
 
 // memory
 enum { MMU_DIRECT, MMU_TRANSLATE, MMU_FAIL };

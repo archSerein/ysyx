@@ -31,13 +31,12 @@ void isa_reg_display() {
   printf("pc\t0x%x\t0x%x\n", cpu.pc, cpu.pc);
 }
 
-word_t isa_reg_str2val(const char *s, bool *success) {
+word_t isa_reg_str2val(const char *s) {
   const char *reg_name = s + 1;
   for(int i = 0; i < 32; i++)
   {
     if(strcmp(reg_name, regs[i]) == 0)
     {
-      *success = true;
       return cpu.gpr[i];
     }
   }
@@ -46,6 +45,5 @@ word_t isa_reg_str2val(const char *s, bool *success) {
   {
     return cpu.pc;
   }
-  *success = false;
   return 0;
 }

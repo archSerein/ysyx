@@ -102,7 +102,7 @@ static int cmd_p(char *args)
   uint32_t result = expr(args, &success);
   if(success)
   {
-    printf("%s -> %d\t%x\n", args, result, result);
+    printf("%s -> %d\t0x%x\n", args, result, result);
     return 0;
   }
   else {
@@ -121,6 +121,16 @@ static int cmd_d(char *args)
 {
   return free_wp(atoi(args));
 }
+
+#ifdef CONFIG_FTRACE
+extern void print_func_stack();
+static int cmd_print(char *args)
+{
+  print_func_stack();
+  return 0;
+}
+#endif
+
 static struct {
   const char *name;
   const char *description;
@@ -135,6 +145,9 @@ static struct {
   {"p", "Find the value of the expression EXPR", cmd_p},
   {"w", "Suspends program execution when the value of expression EXPR changes.", cmd_w},
   {"d", "Delete the monitoring point with serial number N.", cmd_d},
+  #ifdef CONFIG_FTRACE
+  {"print", "print the function stack", cmd_print},
+  #endif
 
   /* TODO: Add more commands */
 

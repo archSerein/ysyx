@@ -218,4 +218,12 @@ config WATCHPOINT
   bool "Enable watchpoints"
   default n
 
+config MTRACE
+  bool "Enable mtrace"
+  default n
+
+config FTRACE
+  bool "Enable ftrace"
+  default n
+  
 endmenu
