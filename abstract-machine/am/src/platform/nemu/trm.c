@@ -5,6 +5,7 @@ extern char _heap_start;
 int main(const char *args);
 
 Area heap = RANGE(&_heap_start, PMEM_END);
+void *addr = (void *)&_heap_start;
 #ifndef MAINARGS
 #define MAINARGS ""
 #endif

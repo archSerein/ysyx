@@ -226,4 +226,7 @@ config FTRACE
   bool "Enable ftrace"
   default n
   
+config DTRACE
+  bool "Enable dtrace"
+  default n
 endmenu

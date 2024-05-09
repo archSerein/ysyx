@@ -3,11 +3,11 @@ VCD = ./V$(TOPNAME).vcd
 NXDC_FILES = constr/top.nxdc
 INC_PATH ?=
 ALL ?=
-IMG = /home/serein/ysyx/ysyx-workbench/am-kernels/tests/cpu-tests/build/$(ALL)-riscv32e-npc.bin
-ELF = /home/serein/ysyx/ysyx-workbench/am-kernels/tests/cpu-tests/build/$(ALL)-riscv32e-npc.elf
+IMG = /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.bin
+ELF = /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.elf
 
 VERILATOR = verilator
-VERILATOR_CFLAGS += -MMD --trace \
+VERILATOR_CFLAGS += -MMD \
 				-O3 --x-assign unique --x-initial fast --noassert --build -cc
 
 BUILD_DIR = ./build
@@ -43,8 +43,8 @@ CSRCS += $(SRC_AUTO_BIND)
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-CXXFLAGS += $(shell llvm-config --cxxflags) -DCONFIG_ITRACE -DCONFIG_WATCHPOINT -DCONFIG_FTRACE -DCONFIG_MTRACE -DCONFIG_DIFFTEST
-LDFLAGS += -lreadline $(shell llvm-config --libs) -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
+CXXFLAGS += $(shell llvm-config --cxxflags) # -DCONFIG_ITRACE -DCONFIG_WATCHPOINT -DCONFIG_FTRACE # -DCONFIG_DIFFTEST -DCONFIG_MTRACE
+LDFLAGS += -lreadline $(shell llvm-config --libs) # -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
 
 
 $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
@@ -57,7 +57,7 @@ $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 
 run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@$^ $(IMG) $(ELF) -b
+	@$^ $(IMG) -b
 	@echo "all done"
 
 gdb: $(BIN)

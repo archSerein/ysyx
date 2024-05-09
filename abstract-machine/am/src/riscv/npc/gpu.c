@@ -1,6 +1,7 @@
 #include <am.h>
-#include <nemu.h>
 
+#define FB_ADDR         (0xa0000000 + 0x1000000)
+#define VGACTL_ADDR     (0xa0000000 + 0x0000100)
 #define SYNC_ADDR (VGACTL_ADDR + 4)
 #define HEIGHT_MASK 0x0000ffff
 void __am_gpu_init() {
@@ -12,7 +13,9 @@ void __am_gpu_init() {
 }
 
 void __am_gpu_config(AM_GPU_CONFIG_T *cfg) {
-  uint32_t vga_ctl = inl(VGACTL_ADDR);
+
+  uint32_t vga_ctl = 0;
+  asm volatile("lw %0, 0(%1)" : "=r"(vga_ctl) : "r"(VGACTL_ADDR));
   uint32_t width = (vga_ctl & ~HEIGHT_MASK) >> 16;
   uint32_t height = vga_ctl & HEIGHT_MASK;
   *cfg = (AM_GPU_CONFIG_T) {
@@ -42,7 +45,8 @@ void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *ctl) {
   }
 
   if (ctl->sync) {
-    outl(SYNC_ADDR, 1);
+    // outl(SYNC_ADDR, 1);
+    asm volatile("sw %0, 0(%1)" : : "r"(1) , "r"(SYNC_ADDR));
   }
 }
 

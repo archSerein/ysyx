@@ -78,6 +78,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
         func_stack[ftraceindex].addr = ftrace[i].addr;
         strcpy(func_stack[ftraceindex].name, ftrace[i].name);
         strcpy(func_stack[ftraceindex].pc, addr);
+        printf(ANSI_FMT("call[%s@%0x08x]\n", ANSI_FG_RED), ftrace[i].name, ftrace[i].addr);
         ++ftraceindex;
         break;
       }
@@ -115,6 +116,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
             strcpy(func_stack[ftraceindex].name, func_stack[i].name);
             func_stack[ftraceindex].addr = 0;
             strcpy(func_stack[ftraceindex].pc, addr);
+            // printf(ANSI_FMT("ret[%s]\n", ANSI_FG_RED), ftrace[i].name);
             ++ftraceindex;
             break;
           }
@@ -129,6 +131,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
             func_stack[ftraceindex].addr = ftrace[i].addr;
             strcpy(func_stack[ftraceindex].name, ftrace[i].name);
             strcpy(func_stack[ftraceindex].pc, addr);
+            // printf(ANSI_FMT("call[%s@%0x08x]\n", ANSI_FG_RED), ftrace[i].name, ftrace[i].addr);
             ++ftraceindex;
             break;
           }

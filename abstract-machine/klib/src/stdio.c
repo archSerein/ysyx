@@ -73,6 +73,17 @@ printint(int num, int base, int sign, int width) {
     putch(NumberToChar[i]);
   }
 }
+
+static void
+printptr(unsigned long num) {
+  int i;
+
+  for (i = 0; i < (sizeof(unsigned long) << 1); i++) {
+    putch(digital[(num >> ((sizeof(unsigned long) << 3) - 4)) & 0xf]);
+    num <<= 4;
+  }
+}
+
 int printf(const char *fmt, ...) {
   // panic("Not implemented");
   va_list ap;
@@ -84,7 +95,7 @@ int printf(const char *fmt, ...) {
     if (fmt[i] == '%') {
       ++i;
       int width = 0;
-      if (fmt[i] == '0') {
+      if (fmt[i] >= '0' && fmt[i] <= '9') {
         while(fmt[i] >= '0' && fmt[i] <= '9') {
           width = width * 10 + fmt[i] - '0';
           ++i;
@@ -102,7 +113,7 @@ int printf(const char *fmt, ...) {
         case 'x': {
           putch('0');
           putch('x');
-          printint(va_arg(ap, int), 16, 0, width);
+          printint(va_arg(ap, unsigned), 16, 0, width);
           break;
         }
         case '%': {
@@ -113,7 +124,12 @@ int printf(const char *fmt, ...) {
           putch(va_arg(ap, int));
           break;
         }
-        default: panic("Not implemented");
+        case 'p': {
+          putch('0');
+          putch('x');
+          printptr(va_arg(ap, unsigned long));
+        }
+        default: putch(fmt[i]); panic("Not implemented");
       }
     } else {
       putch(fmt[i]);

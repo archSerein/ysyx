@@ -1,0 +1,101 @@
+#include <cstdint>
+#include "wp.hpp"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+
+#define NR_WP 32
+
+static WP wp_pool[NR_WP] = {};
+static WP *head = NULL, *free_ = NULL;
+
+void init_wp_pool() {
+  int i;
+  for (i = 0; i < NR_WP; i ++) {
+    wp_pool[i].NO = i;
+    wp_pool[i].result = 0;
+    wp_pool[i].hit_count = 0;
+    strcpy(wp_pool[i].str, "");
+    wp_pool[i].enable = false;
+    wp_pool[i].next = (i == NR_WP - 1 ? NULL : &wp_pool[i + 1]);
+  }
+
+  head = NULL;
+  free_ = wp_pool;
+}
+
+WP* new_wp(char *e)
+{
+  bool success = true;
+  WP *tmp = (head == NULL ? head : head->next);
+  if(free_ != NULL) {
+    if(head == NULL)
+      head = free_;
+    else  head->next = free_;
+  }
+  else  return NULL;
+  strcpy(free_->str, e);
+  free_->result = expr(e, &success);
+  free_->enable = true;
+  if(success == false)
+  {
+    printf("cal fail\n");
+  }
+  free_ = free_->next;
+  if(tmp == NULL)
+  {
+    head->next = tmp;
+  }
+  else {
+    head->next->next = tmp;
+  }
+  return tmp == NULL ? head : head->next;
+}
+
+int free_wp(int NO)
+{
+  WP *p = head;
+  WP *q = head;
+  for(; p != NULL; p = p->next)
+  {
+    if(p->NO == NO)
+      break;
+    if(p != head)
+      q = q->next;
+  }
+  if(p == NULL)
+    return -1;
+  if(p == head)
+    head = q->next;
+  p->enable = false;
+  WP *tmp = free_->next;
+  free_->next = p;
+  q->next = p->next;
+  p->next = tmp;
+  return 0;
+}
+
+void info_w()
+{
+  for(WP *p = head; p != NULL; p = p->next)
+  {
+    printf("%d\t%s\t%d\t%d\t%s\n", p->NO, p->str, p->result, p->hit_count, p->enable ? "true" : "false");
+  }
+}
+
+int config_watchpoint(void)
+{
+  bool success = true;
+  for(WP *p = head; p != NULL; p = p->next)
+  {
+    int num = expr(p->str, &success);
+    if(p->result != num)
+    {
+      printf("The value of the expression:%s changed from %d to %d\n", p->str, p->result, num);
+      ++p->hit_count;
+      return 1;
+    }
+  }
+  return 0;
+}

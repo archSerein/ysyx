@@ -25,16 +25,24 @@ static int parse_args(int argc, char *argv[]) {
 
 int main(int argc, char *argv[], char *env[]) {
     sim_init();
-    if(argc < 3)
+    #ifdef CONFIG_FTRACE
+      if(argc < 3)
+    #else
+      if(argc < 2)
+    #endif // CONFIG_FTRACE
     {
         printf("need a argument to initial pmem\n");
         exit(0);
     }
 
     long size = init_mem(argv[1]);
-    parse_elf(argv[2]);
+    #ifdef CONFIG_FTRACE
+      parse_elf(argv[2]);
+    #endif // CONFIG_FTRACE
     init_sdb();
-    init_disasm("riscv32-pc-linux-gnu");
+    #ifdef CONFIG_ITRACE
+      init_disasm("riscv32-pc-linux-gnu");
+    #endif // CONFIG_ITRACE
 
     reset(2);
     #ifdef CONFIG_DIFFTEST
