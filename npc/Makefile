@@ -70,5 +70,3 @@ clean:
 	rm -rf $(BUILD_DIR) *.vcd
 
 .PHONY: clean run all
-
-
