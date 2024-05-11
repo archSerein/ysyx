@@ -55,9 +55,9 @@ $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
-run: $(BIN)
+sim: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@$^ $(IMG) -b
+	@$^ $(IMG) $(ELF) -b
 	@echo "all done"
 
 gdb: $(BIN)
@@ -69,4 +69,6 @@ all:
 clean:
 	rm -rf $(BUILD_DIR) *.vcd
 
-.PHONY: clean run all
+.PHONY: clean sim all
+
+include ../Makefile
