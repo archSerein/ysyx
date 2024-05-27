@@ -38,7 +38,7 @@ cpustr(char *dst, int num, int base)
 
 static char NumberToChar[64] = {};
 static void
-printint(int num, int base, int sign, int width) {
+printint(unsigned num, int base, int sign, int width) {
   if(num == 0)
   {
     putch('0');
@@ -46,8 +46,7 @@ printint(int num, int base, int sign, int width) {
   }
   
   bool neg = false;
-  if (num < 0 && sign) {
-    num = -num;
+  if ((int)num < 0 && sign) {
     neg = true;
   }
   int i = 0;
@@ -111,8 +110,6 @@ int printf(const char *fmt, ...) {
           break;
         }
         case 'x': {
-          putch('0');
-          putch('x');
           printint(va_arg(ap, unsigned), 16, 0, width);
           break;
         }

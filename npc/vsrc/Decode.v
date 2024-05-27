@@ -48,57 +48,7 @@ module Decode (
     wire [6:0] funct7;
     assign funct3 = inst[14:12];
     assign funct7 = inst[31:25];
-    /*
-    // 根据opcode, funct3和funct7的组合，将指令类型进行分类
-    assign option = (optype == `INST_R) ? 
-                    (funct3 == 3'b000) ? (funct7 == 7'b0000000 ? `add  : `sub) :
-                    (funct3 == 3'b001) ? `sll  :
-                    (funct3 == 3'b010) ? `slt  :
-                    (funct3 == 3'b011) ? `sltu :
-                    (funct3 == 3'b100) ? `xor  :
-                    (funct3 == 3'b101) ? (funct7 == 7'b0000000 ? `srl  : `sra) :
-                    (funct3 == 3'b110) ? `or   :
-                    (funct3 == 3'b111) ? `and  :
-                    `nop :
-                (optype == `INST_I) ? 
-                    (opcode == 7'b1100111) ? `jalr  :
-                    (opcode == 7'b0010011) ?    (   funct3 == 3'b000 ? `addi  :
-                                                    funct3 == 3'b001 ? `slli  :
-                                                    funct3 == 3'b010 ? `slti  :
-                                                    funct3 == 3'b011 ? `sltiu :
-                                                    funct3 == 3'b100 ? `xori  :
-                                                    funct3 == 3'b101 ? (funct7 == 7'b0000000 ? `srli : `srai) :
-                                                    funct3 == 3'b110 ? `ori   :
-                                                    funct3 == 3'b111 ? `andi  :
-                                                    `nop) :
-                    (opcode == 7'b0000011) ?    (   funct3 == 3'b000 ? `lb    :
-                                                    funct3 == 3'b001 ? `lh    :
-                                                    funct3 == 3'b010 ? `lw    :
-                                                    funct3 == 3'b100 ? `lbu   :
-                                                    funct3 == 3'b101 ? `lhu   :
-                                                    `nop) :
-                (optype == `INST_S) ? 
-                    (funct3 == 3'b000) ? `sb    :
-                    (funct3 == 3'b001) ? `sh    :
-                    (funct3 == 3'b010) ? `sw    :
-                    `nop :
-                (optype == `INST_B) ? 
-                    (funct3 == 3'b000) ? `beq   :
-                    (funct3 == 3'b001) ? `bne   :
-                    (funct3 == 3'b100) ? `blt   :
-                    (funct3 == 3'b101) ? `bge   :
-                    (funct3 == 3'b110) ? `bltu  :
-                    (funct3 == 3'b111) ? `bgeu  :
-                    `nop :
-                (optype == `INST_U) ? 
-                    ((opcode == 7'b0110111) ? `lui   :
-                     (opcode == 7'b0010111) ? `auipc :
-                     `nop) :
-                (optype == `INST_J) ?   `jal :
-                (optype == `FUNC) ? 
-                    ((inst[31:20] == 12'b000000000000) ? `ecall : `ebreak) :
-                `fence;
-*/
+
     assign option = 
       (optype == `INST_R) ? (
         (funct3 == 3'b000) ? (funct7 == 7'b0000000 ? `add : `sub) :

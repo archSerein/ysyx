@@ -64,6 +64,11 @@ static void exec_once(Decode *s, vaddr_t pc) {
   s->snpc = pc;
   isa_exec_once(s);
   cpu.pc = s->dnpc;
+#ifdef CONFIG_ETRACE
+  if (s->isa.inst.val == 0x73) {
+    printf("ecall from 0x%08x\n", s->pc);
+  }
+#endif // CONFIG_ETRACE
 #ifdef CONFIG_FTRACE
   char *addr = strtok(s->logbuf, " ");
   char *op = strtok(s->logbuf + 24, "\t");
@@ -159,7 +164,6 @@ static void exec_once(Decode *s, vaddr_t pc) {
 #endif
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
-  printf("p->%ld\n", strlen(p));
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
   int ilen = s->snpc - s->pc;
   int i;

@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 module bool(
     input [31:0] a,
     input [31:0] b,

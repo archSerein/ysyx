@@ -27,6 +27,26 @@ enum {
   TYPE_N, // none
 };
 
+#define CSRW() \
+                do { \
+                       switch (imm) { \
+                          case 0x300: cpu.csr[MSTATUS] = src1; break; \
+                          case 0x342: cpu.csr[MCAUSE] = src1; break; \
+                          case 0x341: cpu.csr[MEPC] = src1; break; \
+                          case 0x305: cpu.csr[MTVEC] = src1; break; \
+                          default: break; \
+                      } \
+                    } while (0)
+#define CSRR() \
+                 do { \
+                      switch (imm) { \
+                          case 0x300: t = cpu.csr[MSTATUS]; break; \
+                          case 0x342: t = cpu.csr[MCAUSE]; break; \
+                          case 0x341: t = cpu.csr[MEPC]; break; \
+                          case 0x305: t = cpu.csr[MTVEC]; break; \
+                          default: t = 0; break; \
+                      } \
+                    } while(0)
 #define src1R() do { *src1 = R(rs1); } while (0)
 #define src2R() do { *src2 = R(rs2); } while (0)
 #define immI() do { *imm = SEXT(BITS(i, 31, 20), 12); } while(0)
@@ -58,7 +78,7 @@ static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_
 
 static int decode_exec(Decode *s) {
   int rd = 0;
-  word_t src1 = 0, src2 = 0, imm = 0;
+  word_t src1 = 0, src2 = 0, imm = 0, t = 0;
   s->dnpc = s->snpc;
 
 #define INSTPAT_INST(s) ((s)->isa.inst.val)
@@ -69,14 +89,18 @@ static int decode_exec(Decode *s) {
 
 
   INSTPAT_START();
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, CSRR(); R(rd) = t; CSRW());
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, CSRR(); R(rd) = t; src1 = t | src1; CSRW());
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , N, s->dnpc = isa_raise_intr(isa_reg_str2val("@a7"), s->pc));
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , N, s->dnpc = cpu.csr[MEPC] + 4);
   INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw     , S, Mw(src1 + imm, 4, src2));
   INSTPAT("??????? ????? ????? 010 ????? 00000 11", lw     , I, R(rd) = Mr(src1 + imm, 4));
   INSTPAT("??????? ????? ????? ??? ????? 01101 11", lui    , U, R(rd) = imm);
   INSTPAT("??????? ????? ????? 000 ????? 00100 11", addi   , I, R(rd) = src1 + imm);
   INSTPAT("0000001 ????? ????? 000 ????? 01100 11", mul    , R, R(rd) = src1 * src2);
   INSTPAT("0000001 ????? ????? 001 ????? 01100 11", mulh   , R, R(rd) = (SEXT(src1, 32) * SEXT(src2, 32)) >> 32);
-  INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = (int32_t)(src1 + src2));
-  INSTPAT("0100000 ????? ????? 000 ????? 01100 11", sub    , R, R(rd) = (int32_t)(src1 - src2));
+  INSTPAT("0000000 ????? ????? 000 ????? 01100 11", add    , R, R(rd) = (src1 + src2));
+  INSTPAT("0100000 ????? ????? 000 ????? 01100 11", sub    , R, R(rd) = (src1 - src2));
   INSTPAT("0000001 ????? ????? 100 ????? 01100 11", div    , R, R(rd) = (int32_t)src1 / (int32_t)src2);
   INSTPAT("0000001 ????? ????? 101 ????? 01100 11", divu   , R, R(rd) = src1 / src2);
   INSTPAT("0000001 ????? ????? 110 ????? 01100 11", rem    , R, R(rd) = (int32_t)src1 % (int32_t)src2);
@@ -112,7 +136,10 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 111 ????? 00100 11", andi   , I, R(rd) = src1 & imm);
   INSTPAT("0000000 ????? ????? 110 ????? 01100 11", or     , R, R(rd) = src1 | src2);
   INSTPAT("??????? ????? ????? 110 ????? 00100 11", ori    , I, R(rd) = src1 | imm);
-  INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu  , R, R(rd) = ((uint64_t)src1 * (uint64_t)src2) >> 32);
+  INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu  , R, uint32_t high_high = (src1 >> 16) * (src2 >> 16); \
+                                                               uint32_t low_high = (src1 & 0x0000FFFF) * (src2 >> 16); \
+                                                               uint32_t high_low = (src1 >> 16) * (src2 & 0x0000FFFF); \
+                                                               R(rd) = high_high + (low_high >> 16) + (high_low >> 16););
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();

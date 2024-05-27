@@ -34,6 +34,7 @@ module shift(
     assign SA = y[0] == 1'b1 ? {{1{x[31]}}, T2[31:1]} : T2;
 
     // Output logic
+    /*
     wire [31:0] out_SL, out_SR, out_SA;
 
     assign out_SL = fn == 2'b00 ? SL : 32'b0;
@@ -41,5 +42,10 @@ module shift(
     assign out_SA = fn == 2'b11 ? SA : 32'b0;
 
     assign out = out_SL | out_SR | out_SA;
+    */
 
+    wire [31:0] mux_1, mux_2;
+    assign mux_1 = fn[0]    ?   SR  :   SL;
+    assign mux_2 = fn[0]    ?   SA  :   32'b0;
+    assign out = fn[1]  ?   mux_2   :   mux_1;
 endmodule

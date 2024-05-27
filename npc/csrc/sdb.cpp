@@ -149,11 +149,11 @@ static char* rl_gets() {
 void
 sdb_mainloop()
 {
-    if (is_batch_mode) {
+  if (is_batch_mode) {
     cmd_c(NULL);
     return;
   }
-for (char *str; (str = rl_gets()) != NULL; ) {
+  for (char *str; (str = rl_gets()) != NULL; ) {
         char *str_end = str + strlen(str);
 
         /* extract the first token as the command */

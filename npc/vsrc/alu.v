@@ -38,11 +38,10 @@ module alu(
 
     // 选择需要的输出
     wire [31:0] shift_out, arith_out, bool_out;
-    // assign cmp_out = fn[5:4] == 2'b00 ? cmp_tmp : 32'h0;
-    assign arith_out = fn[5:4] == 2'b01 ? arith_tmp : 32'h0;
-    assign bool_out = fn[5:4] == 2'b10 ? bool_tmp : 32'h0;
-    assign shift_out = fn[5:4] == 2'b11 ? shift_tmp : 32'h0;
+    wire [31:0] mux_1, mux_2;
 
-    assign result = arith_out | bool_out | shift_out;
+    assign mux_1 = fn[4] ? arith_tmp : 32'b0;
+    assign mux_2 = fn[4] ? shift_tmp : bool_tmp;
+    assign result = fn[5] ? mux_2 : mux_1;
     
 endmodule

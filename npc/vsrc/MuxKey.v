@@ -56,8 +56,16 @@ module MuxKey (
     input [3:0] value
 );
 
+    /*
     assign out =    (key == 2'b00) ? value[0] :
                     (key == 2'b01) ? value[1] :
                     (key == 2'b10) ? value[2] :
                     value[3];
+    */
+        
+    wire mux_1, mux_2;
+    assign mux_1 = key[0]   ?   value[1]    :   value[0];
+    assign mux_2 = key[0]   ?   value[3]    :   value[2];
+    assign out   = key[1]   ?   mux_2   :   mux_1;
+
 endmodule

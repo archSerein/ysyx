@@ -43,8 +43,8 @@ CSRCS += $(SRC_AUTO_BIND)
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-CXXFLAGS += $(shell llvm-config --cxxflags) -DCONFIG_ITRACE -DCONFIG_WATCHPOINT -DCONFIG_FTRACE # -DCONFIG_DIFFTEST -DCONFIG_MTRACE
-LDFLAGS += -lreadline $(shell llvm-config --libs) -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
+CXXFLAGS += $(shell llvm-config --cxxflags) # -DCONFIG_ITRACE -DCONFIG_WATCHPOINT -DCONFIG_FTRACE # -DCONFIG_DIFFTEST -DCONFIG_MTRACE
+LDFLAGS += -lreadline $(shell llvm-config --libs) # -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
 
 
 $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
@@ -55,9 +55,9 @@ $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
-sim: $(BIN)
+run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@$^ $(IMG) $(ELF) -b
+	@$^ $(IMG) -b
 	@echo "all done"
 
 gdb: $(BIN)
@@ -69,6 +69,6 @@ all:
 clean:
 	rm -rf $(BUILD_DIR) *.vcd
 
-.PHONY: clean sim all
+.PHONY: clean run all
 
 include ../Makefile

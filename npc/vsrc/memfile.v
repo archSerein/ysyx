@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 `include "ctrl.v"
 import "DPI-C" function void pmem_write(input int addr, input int len, input int din);
 import "DPI-C" function int pmem_read(input int addr, input int len);
