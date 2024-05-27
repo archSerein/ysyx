@@ -125,6 +125,7 @@ int printf(const char *fmt, ...) {
           putch('0');
           putch('x');
           printptr(va_arg(ap, unsigned long));
+          break;
         }
         default: putch(fmt[i]); panic("Not implemented");
       }
