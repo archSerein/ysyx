@@ -4,6 +4,7 @@
 
 static PCB pcb[MAX_NR_PROC] __attribute__((used)) = {};
 static PCB pcb_boot = {};
+extern void naive_uload(PCB *pcb, const char *filename);
 PCB *current = NULL;
 
 void switch_boot_pcb() {
@@ -24,8 +25,9 @@ void init_proc() {
 
   Log("Initializing processes...");
 
+  const char filename[] = "/bin/timer-test";
   // load program here
-
+  naive_uload(NULL, filename);
 }
 
 Context* schedule(Context *prev) {

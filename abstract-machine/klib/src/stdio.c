@@ -127,6 +127,14 @@ int printf(const char *fmt, ...) {
           printptr(va_arg(ap, unsigned long));
           break;
         }
+        case 'l':
+          ++i;
+          if (fmt[i] == 'd') {
+            printint(va_arg(ap, long), 10, 1, width);
+          } else {
+            printint(va_arg(ap, unsigned long), 16, 0, width);
+          }
+          break;
         default: putch(fmt[i]); panic("Not implemented");
       }
     } else {

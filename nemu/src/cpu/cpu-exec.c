@@ -83,7 +83,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
         func_stack[ftraceindex].addr = ftrace[i].addr;
         strcpy(func_stack[ftraceindex].name, ftrace[i].name);
         strcpy(func_stack[ftraceindex].pc, addr);
-        printf(ANSI_FMT("call[%s@%0x08x]\n", ANSI_FG_RED), ftrace[i].name, ftrace[i].addr);
+        // printf(ANSI_FMT("call[%s@%0x08x]\n", ANSI_FG_RED), ftrace[i].name, ftrace[i].addr);
         ++ftraceindex;
         break;
       }
@@ -265,6 +265,7 @@ isa_exec_err_display()
     ++begin;
   }
   Log("%s", iringbuf[begin%iringlength]);
+  print_func_stack();
 }
 #endif
 
