@@ -179,6 +179,7 @@ void parse_elf()
 
 void parse_elf() {
     FILE* file = fopen(elf_file, "rb");
+    printf("elf_file: %s\n", elf_file);
     if (file == NULL) {
         printf("Failed to open file: %s\n", elf_file);
         return;
