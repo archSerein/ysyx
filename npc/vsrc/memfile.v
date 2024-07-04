@@ -1,28 +1,23 @@
-`include "ctrl.v"
-import "DPI-C" function void pmem_write(input int addr, input int len, input int din);
-import "DPI-C" function int pmem_read(input int addr, input int len);
+import "DPI-C" function void pmem_write(input int addr, input int data, input int mask);
 
 module memfile (
-    input clk,
-    input we,
-    input re,
-    input [31:0] wdith,
-    input [31:0] addr,
-    input [31:0] din,
-    output reg [31:0] dout
+    input clk_i,
+    input [31:0] mem_addr_i,
+    input [31:0] mem_wdata_i,
+    input mem_wen_i,
+    input mem_ren_i,
+    output [31:0] mem_rdata_o
 );
+
+    // mask 读写掩码
+    // sw sb sh
     
-    always @ (posedge clk)
-    begin
-        if (we) pmem_write(addr, wdith, din); 
+    always @(posedge clk_i) begin
+        if (mem_wen_i) begin
+            pmem_write(mem_addr_i, mem_wdata_i, MASK);
+        end
     end
 
-    always @ (*)
-    begin
-        if(re == `mem_r_enable)
-            dout = pmem_read(addr, wdith);
-        else
-            dout = 32'd0;
-    end
-
+    // read
+    assign mem_rdata_o = (mem_ren_i) ? pmem_read(mem_addr_i, MASK) : `zeroWord;
 endmodule

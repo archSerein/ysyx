@@ -1,21 +1,23 @@
 module cmp(
-    input [31:0] x,
-    input [31:0] y,
-    input [2:0] fn,
-    output [31:0] cmp
+    input [31:0] compare_a_i,
+    input [31:0] compare_b_i,
+    input [2:0] compare_fn_i,
+    output [31:0] compare_o
 );
 
-    wire [31:0] S;
-    wire ZF, VF, NF, CF;
-    arith arith_cmp_module (
-        .x(x),
-        .y(y),
+    wire [31:0] x = compare_a_i;
+    wire [31:0] y = compare_b_i;
+    wire [2:0] fn = compare_fn_i;
+
+    wire [31:0] arith_result;
+    wire [2:0] arith_flag;
+    
+    arith arith_module (
         .AFN(1'b1),
-        .S(S),
-        .ZF(ZF),
-        .VF(VF),
-        .NF(NF),
-        .CF(CF)
+        .arith_a_i(x),
+        .arith_b_i(y),
+        .arith_o(arith_result),
+        .arith_flag_o(arith_flag)
     );
     wire result;
     /*
@@ -29,6 +31,12 @@ module cmp(
                     VF;            // undifined -> overflow
     */
 
+    wire ZF, NF, VF, CF;
+    assign ZF = (|arith_result) ? 1'b0 : 1'b1;
+    assign NF = (arith_result[31] == 1'b1) ? 1'b1 : 1'b0;
+    assign VF = (~(x[31] ^ y[31] ^ 1'b1)) & (x[31] ^ arith_result[31]);
+    assign CF = arith_flag[2] | (arith_flag[1] & arith_flag[0]);
+
     wire mux_1, mux_2, mux_3, mux_4, mux_5, mux_6;
     assign mux_1 = fn[0]    ?   ~ZF  :   ZF;
     assign mux_2 = fn[0]    ?   NF  :   (~NF & ~VF) | (NF & VF);
@@ -39,4 +47,5 @@ module cmp(
     assign result = fn[2]   ?   mux_6   :   mux_5;
     assign cmp = {{31{1'b0}}, result};
 
+    assign compare_o = cmp;
 endmodule

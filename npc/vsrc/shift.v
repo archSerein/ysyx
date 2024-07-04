@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 module shift(
     input [31:0] x,
     input [4:0] y,

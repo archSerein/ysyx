@@ -1,19 +1,17 @@
-`timescale 1ns / 1ps
 // 32位超前进位加法器
 // 有两个16位的加法器构成
 // 使用cla生成进位信号
 
 module arith(
-    input [31:0] x,
-    input [31:0] y,
+    input [31:0] arith_a_i,
+    input [31:0] arith_b_i,
     input AFN,
-    output [31:0] S,
-    output ZF,
-    output VF,
-    output NF,
-    output CF
+    output [31:0] arith_o,
+    output [2:0] arith_flag_o
 );
 
+    wire [31:0] x = arith_a_i;
+    wire [31:0] y = arith_b_i;
     wire [1:0] px, gx;
     wire c_16;
     wire[31:0] Y;
@@ -48,10 +46,9 @@ module arith(
 
     assign c_16 = gx[0] | (px[0] & AFN);
 
-    assign ZF = (S == 32'h0) ? 1'b1 : 1'b0;
-    assign VF = (x[31] == Y[31]) && (x[31] != S[31]);
-    assign NF = S[31];
-    assign CF = gx[1] | (px[1] & c_16);
+    wire [2:0] arith_flag = {gx[1], px[1], c_16};
+    assign arith_flag_o = arith_flag;
+    assign arith_o = S;
 endmodule
 
 module fulladder16(

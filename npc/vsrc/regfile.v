@@ -1,34 +1,32 @@
-`timescale 1ns / 1ps
 module regfile (
-    input clk,
-    input wen,
-    input [4:0] r1_addr,
-    input [4:0] r2_addr,
-    input [4:0] w_addr,
-    input [31:0] w_data,
-    output reg [31:0] r1_data,
-    output reg [31:0] r2_data
+    input clk_i,
+    input reg_src1_i,
+    input reg_src2_i,
+    input reg_dst_i,
+    input reg_wen_i,
+    input [31:0] reg_wdata_i,
+    output [31:0] reg_rdata1_o,
+    output [31:0] reg_rdata2_o
 );
 
-    parameter WIDTH_SIZE = 32;
-    parameter WIDTH_LENGTH = 32;
-    reg [WIDTH_SIZE-1:0] register [WIDTH_LENGTH-1:0];
-    // 时序逻辑
-    // 用于写寄存器
-    always @ (posedge clk)
+    // Internal signals
+    // 通用寄存器
+    reg [31:0] regfile [31:0];
+
+    // write
+    // 在 write back 阶段写入
+    always @(posedge clk_i)
     begin
-        if(wen)
-        begin         
-            register[w_addr] <= w_data;
+        if (reg_wen_i) begin
+            regfile[reg_dst_i] <= reg_wdata_i;
         end
-        
-        // 保存0寄存器的值一直为0
-        register[0] <= 0;
+
+        // x0 always be zero
+        regfile[0] <= 32'b0;
     end
 
-    // 读寄存器
-    assign r1_data = register[r1_addr];
-    assign r2_data = register[r2_addr];
+    // read
+    assign reg_rdata1_o = regfile[reg_src1_i];
+    assign reg_rdata2_o = regfile[reg_src2_i];
 
 endmodule
-

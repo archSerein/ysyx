@@ -1,124 +1,52 @@
-`timescale 1ns / 1ps
-`include "define.v"
-
-module top(
-    input clk,
-    input rst
+module top (
+    input clk_i,
+    input rst_i,
+    input mem_addr_i,
+    input mem_wdata_i,
+    input mem_wen_i,
+    input mem_ren_i,
+    output [31:0] mem_rdata_o
 );
 
-    // pc_reg 更新 pc 的模块
-    reg [31:0] current_pc;
-    wire [31:0] inst;
-    wire [31:0] snpc, jmp_addr;
+    // Internal signals
+    wire [31:0] jmp_addr;
     wire jmp_flag;
-    pc_reg pc_reg_module (
-        .clk(clk),
-        .rst(rst),
-        .snpc(snpc),
-        .jmp_addr(jmp_addr),
-        .jmp_flag(jmp_flag),
-        .current_pc(current_pc)
+    wire [31:0] snpc;
+    wire [31:0] inst;
+    wire [31:0] current_pc;
+
+    fetch fetch_module (
+        .clk_i(clk_i),
+        .rst_i(rst_i),
+        .snpc_i(snpc),
+        .jmp_addr_i(jmp_addr),
+        .jmp_flag_i(jmp_flag),
+        .inst_o(inst),
+        .pc_o(current_pc)
     );
 
-    // 取指模块
-    // 将指令信号传输到 Decode 模块
-    ifetch ifetch_module (
-        .clk(clk),
-        .pc(current_pc),
-        .inst(inst)
-    );
-
-    // 译码模块
-    // 从指令翻译出源操作数
-    // 将源操作数信号传输到 execute 模块
-    wire [2:0] optype;
-    wire [4:0] src1, src2, rd;
-    wire [5:0] option, fn;
-    wire [31:0] imm;
-    reg wen;
-    Decode Decode_module (
-        .inst(inst),
-        .optype(optype),
-        .option(option),
-        .src1(src1),
-        .src2(src2),
-        .rd(rd),
-        .fn(fn),
-        .imm(imm)
-    );
-
-    // 将译码模块的源操作数传输到 regfile 模块
-    // 取出对应寄存器的数据
-    wire [31:0] w_data;
-    wire [31:0] r1_data, r2_data;
-    regfile regfile_module (
-        .clk(clk),
-        .wen(wen),
-        .r1_addr(src1),
-        .r2_addr(src2),
-        .w_addr(rd),
-        .w_data(w_data),
-        .r1_data(r1_data),
-        .r2_data(r2_data)
-    );
-
-    // 译码模块的信号传输到执行模块
-    wire [31:0] alu_out;
-    wire [31:0] cmp_out;
-    decode_execute decode_execute_module (
-        .optype(optype),
-        .option(option),
-        .fn(fn),
-        .imm(imm),
-        .r1_data(r1_data),
-        .r2_data(r2_data),
-        .inst_addr(current_pc),
-        .re(re),
-        .wen(wen),
-        .alu_out(alu_out),
-        .cmp_out(cmp_out)
-    );
-
-    // 内存写使能
-    // 内存模块
-    reg [31:0] dout, wdith;
-    wire we, re;
     memfile memfile_module (
-        .clk(clk),
-        .we(we),
-        .re(re),
-        .wdith(wdith),
-        .addr(alu_out),
-        .din(r2_data),
-        .dout(dout)
+        .clk_i(clk_i),
+        .mem_addr_i(mem_addr_i),
+        .mem_wdata_i(mem_wdata_i),
+        .mem_wen_i(mem_wen_i),
+        .mem_ren_i(mem_ren_i),
+        .mem_rdata_o(mem_rdata_o)
     );
 
-    // 根据译码模块的信号
-    // 执行指令对应的行为
-
-    execute execute_module(
-        .option(option),
-        .imm(imm),
-        .snpc(snpc),
-        .alu_out(alu_out),
-        .cmp_out(cmp_out),
-        .dout(dout),
-        .jmp_addr(jmp_addr),
-        .jmp_flag(jmp_flag),
-        .w_data(w_data),
-        .wdith(wdith),
-        .we(we)
-    );
-
-    arith arith_module (
-        .x(current_pc),
-        .y(32'h4),
-        .AFN(1'b0),
-        .S(snpc),
-        .ZF(),
-        .VF(),
-        .NF(),
-        .CF() 
+    wire [31:0] imm;
+    wire [4:0] rs1, rs2, rd;
+    wire [5:0] fn, option;
+    wire [2:0] optype;
+    decode decode_module (
+        .decode_inst_i(inst),
+        .decode_imm_o(imm),
+        .decode_rs1_o(rs1),
+        .decode_rs2_o(rs2),
+        .decode_rd_o(rd),
+        .decode_fn_o(fn),
+        .decode_option_o(option),
+        .decode_optype_o(optype)
     );
 
 endmodule

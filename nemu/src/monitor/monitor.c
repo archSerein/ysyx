@@ -179,7 +179,6 @@ void parse_elf()
 
 void parse_elf() {
     FILE* file = fopen(elf_file, "rb");
-    printf("elf_file: %s\n", elf_file);
     if (file == NULL) {
         printf("Failed to open file: %s\n", elf_file);
         return;
@@ -243,6 +242,7 @@ void parse_elf() {
 void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization. */
 
+  printf("NEMU is running on %s mode\n", CONFIG_ISA);
   /* Parse arguments. */
   parse_args(argc, argv);
 

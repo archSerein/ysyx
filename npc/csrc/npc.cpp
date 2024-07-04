@@ -1,15 +1,17 @@
 #include "Vtop.h"
 #include "Vtop___024root.h"
-// #include "verilated_vcd_c.h"
+#include "verilated.h"
+#include "verilated_vcd_c.h"
 #include "state.hpp"
 #include "defs.hpp"
 #include "reg.hpp"
+#include "debug.hpp"
 
 static TOP_NAME top;
-// VerilatedContext* contextp = NULL;
-// VerilatedVcdC* tfp = NULL;
+VerilatedContext* contextp = NULL;
+VerilatedVcdC* tfp = NULL;
 
-uint32_t register_file[33];
+uint32_t register_file[37];
 int e = 0;
 
 extern "C" void ending(int num) { e = num; }
@@ -39,12 +41,12 @@ single_cycle(inst_i *cur_inst) {
     }        
     top.clk = 0; // 切换时钟状态
     top.eval();
-    // contextp->timeInc(1);
-    // tfp->dump(contextp->time());
+    contextp->timeInc(1);
+    tfp->dump(contextp->time());
     top.clk = 1; // 切换
     top.eval();
-    // contextp->timeInc(1);
-    // tfp->dump(contextp->time());
+    contextp->timeInc(1);
+    tfp->dump(contextp->time());
     update_register_array();
 }
 
@@ -61,27 +63,27 @@ reset(int n) {
 void
 sim_exit(){
   single_cycle(0);
-  // tfp->close();
+  tfp->close();
 }
 
 void 
 sim_init()
 {
-    // Verilated::traceEverOn(true);
-    // contextp = new VerilatedContext;
-    // tfp = new VerilatedVcdC;
-    // contextp->traceEverOn(true);
-    // top.trace(tfp, 0);
-    // tfp->open("Vtop.vcd");
+    Verilated::traceEverOn(true);
+    contextp = new VerilatedContext;
+    tfp = new VerilatedVcdC;
+    contextp->traceEverOn(true);
+    top.trace(tfp, 0);
+    tfp->open("Vtop.vcd");
 }
 
 void
 isa_reg_display()
 {
-    for(int i = 0; i < 32; i++)
+    for(int i = 0; i < 37; i++)
     {
         printf("%s: %08x\n", regs[i], 
-            top.rootp->top__DOT__regfile_module__DOT__register[i]);
+            register_file[i]);
     }
 }
 
@@ -100,6 +102,10 @@ update_register_array()
     }
 
     register_file[32] = top.rootp->top__DOT__current_pc;
+    register_file[33] = top.rootp->top__DOT__csr_module__DOT__mstatus;
+    register_file[34] = top.rootp->top__DOT__csr_module__DOT__mepc;
+    register_file[35] = top.rootp->top__DOT__csr_module__DOT__mcause;
+    register_file[36] = top.rootp->top__DOT__csr_module__DOT__mtvec;
 }
 
 uint32_t

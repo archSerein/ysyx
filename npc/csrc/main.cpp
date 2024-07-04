@@ -50,7 +50,7 @@ int main(int argc, char *argv[], char *env[]) {
     #endif // CONFIG_DIFFTEST
 
     parse_args(argc, argv);
-    
+
     // 进入sdb
     sdb_mainloop();
 

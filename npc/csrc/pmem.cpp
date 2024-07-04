@@ -57,21 +57,21 @@ pmem_read(int raddr, int len)
         case 4:
             // mtrace
             #ifdef CONFIG_MTRACE
-                printf("read %d bytes at pc = %08x, value = %08x\n",
+                printf("read %d bytes at addr = %08x, value = %08x\n",
                         len, raddr, *(uint32_t *)paddr);
             #endif // CONFIG_MTRACE
             return *(uint32_t *)paddr;
         case 2:
             // mtrace
             #ifdef CONFIG_MTRACE
-                printf("read %d bytes at pc = %08x, value = %08x\n",
+                printf("read %d bytes at addr = %08x, value = %08x\n",
                         len, raddr, *(uint32_t *)paddr);
             #endif // CONFIG_MTRACE
             return *(uint16_t *)paddr;
         case 1:
             // mtrace
             #ifdef CONFIG_MTRACE
-                printf("read %d bytes at pc = %08x, value = %08x\n",
+                printf("read %d bytes at addr = %08x, value = %08x\n",
                         len, raddr, *(uint32_t *)paddr);
             #endif // CONFIG_MTRACE
             return *(uint8_t *)paddr;
@@ -104,7 +104,7 @@ pmem_write(int vaddr, int len, int data)
 
     // mtrace
     #ifdef CONFIG_MTRACE
-        printf("write %d bytes at pc = %08x, value = %08x\n",
+        printf("write %d bytes at addr = %08x, value = %08x\n",
                 len, vaddr, data);
     #endif // CONFIG_MTRACE
 }

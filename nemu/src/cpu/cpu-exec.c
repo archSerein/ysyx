@@ -265,7 +265,6 @@ isa_exec_err_display()
     ++begin;
   }
   Log("%s", iringbuf[begin%iringlength]);
-  print_func_stack();
 }
 #endif
 

@@ -1,13 +1,13 @@
 TOPNAME = top
-VCD = ./V$(TOPNAME).vcd 
+VCD = ./V$(TOPNAME).vcd
 NXDC_FILES = constr/top.nxdc
 INC_PATH ?=
 ALL ?=
-IMG = /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.bin
-ELF = /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.elf
+IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.bin
+ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.elf
 
 VERILATOR = verilator
-VERILATOR_CFLAGS += -MMD \
+VERILATOR_CFLAGS += -MMD --trace \
 				-O3 --x-assign unique --x-initial fast --noassert --build -cc
 
 BUILD_DIR = ./build
@@ -16,7 +16,7 @@ BIN = $(BUILD_DIR)/$(TOPNAME)
 
 $(shell mkdir -p $(BUILD_DIR))
 
-.PHONY: waves 
+.PHONY: waves
 waves: $(VCD)
 	@echo
 	@echo "### WAVES ###"
@@ -43,9 +43,8 @@ CSRCS += $(SRC_AUTO_BIND)
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-CXXFLAGS += $(shell llvm-config --cxxflags) -DCONFIG_ITRACE # -DCONFIG_WATCHPOINT -DCONFIG_FTRACE -DCONFIG_MTRACE -DCONFIG_DIFFTEST
+CXXFLAGS += $(shell llvm-config --cxxflags) #-DCONFIG_ITRACE -DCONFIG_WATCHPOINT  -DCONFIG_MTRACE# -DCONFIG_DIFFTEST # -DCONFIG_FTRACE
 LDFLAGS += -lreadline $(shell llvm-config --libs) # -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
-
 
 $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 		@rm -rf $(OBJ_DIR)
@@ -57,11 +56,11 @@ $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 
 run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@$^ $(IMG) -b
+	@$^ $(IMG)
 	@echo "all done"
 
 gdb: $(BIN)
-	@$^ $(BIN_PATH)
+	@$^ $(IMG) $(BIN_PATH)
 
 all:
 	@echo "Write this Makefile by your self."
@@ -72,3 +71,4 @@ clean:
 .PHONY: clean run all
 
 include ../Makefile
+include $(NPC_HOME)/scripts/config.mk
