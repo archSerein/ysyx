@@ -1,4 +1,4 @@
-module cmp(
+module compare (
     input [31:0] compare_a_i,
     input [31:0] compare_b_i,
     input [2:0] compare_fn_i,
@@ -20,6 +20,7 @@ module cmp(
         .arith_flag_o(arith_flag)
     );
     wire result;
+    wire [31:0] cmp;
     /*
     assign result = (fn == 3'b000) ? ZF :   // equal 
                     (fn == 3'b001) ? ~ZF :  // not equal

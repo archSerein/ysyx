@@ -75,8 +75,10 @@ pmem_read(int raddr, int len)
                         len, raddr, *(uint32_t *)paddr);
             #endif // CONFIG_MTRACE
             return *(uint8_t *)paddr;
+        case 0:
+            return 0;
         default:
-            printf("pmem_read fault at raddr %08x\n", raddr);
+            printf("pmem_read fault at raddr %08x len %d\n", raddr, len);
             return -1;
     }
 

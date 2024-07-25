@@ -26,7 +26,7 @@ module decode (
     wire [4:0] decode_rs2;
     wire [4:0] decode_rd;
     wire [5:0] decode_fn;
-    wire [5:0] decode_opcode;
+    wire [6:0] decode_opcode;
     wire [2:0] decode_optype;
 
     decode_field decode_field_module (
@@ -89,7 +89,7 @@ module decode_field (
     output [4:0] rs1_o,
     output [4:0] rs2_o,
     output [4:0] rd_o,
-    output [5:0] opcode_o,
+    output [6:0] opcode_o,
     output [6:0] funct7_o,
     output [31:0] imm_i_o,
     output [31:0] imm_s_o,
@@ -114,7 +114,7 @@ module decode_field (
     assign imm_s_o = { {20{inst_i[31]}}, inst_i[31], inst_i[7], inst_i[30:25], inst_i[11:8] };
     assign imm_b_o = { {19{inst_i[31]}}, inst_i[31], inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0 };
     assign imm_u_o = { inst_i[31:12], 12'b0 };
-    assign imm_j_o = { {11{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0 };
+    assign imm_j_o = { {12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0 };
 
 endmodule
 

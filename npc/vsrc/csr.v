@@ -13,13 +13,14 @@ module csr(
     reg [`WIDTH_SIZE-1:0] mcause;
     reg [`WIDTH_SIZE-1:0] mtvec;
 
-    reg [`WIDTH_SIZE:0] csr_rdata;
-    wire [`WIDTH_SIZE:0] csr_wdata = csr_wdata_i;
-    wire [`WIDTH_SIZE:0] csr_waddr = csr_waddr_i;
-    wire [`WIDTH_SIZE:0] csr_raddr = csr_raddr_i;
+    reg [`WIDTH_SIZE-1:0] csr_rdata;
+    wire [`WIDTH_SIZE-1:0] csr_wdata = csr_wdata_i;
+    wire [`WIDTH_SIZE-1:0] csr_waddr = csr_waddr_i;
+    wire [`WIDTH_SIZE-1:0] csr_raddr = csr_raddr_i;
+    wire csr_wen = csr_wen_i;
     // 时序逻辑
     // 用于写寄存器
-    always @ (posedge clk)
+    always @ (posedge clk_i)
     begin
         if(csr_wen)
         begin
@@ -44,6 +45,8 @@ module csr(
     //                    (csr_raddr == `MEPC_ADDR) ? mepc :
     //                    (csr_raddr == `MCAUSE_ADDR) ? mcause :
     //                    (csr_raddr == `MTVEC_ADDR) ? mtvec : 32'h0;
+    // 使用 always 块描述组合逻辑
+    // 后续会使用 mux，用 assign 语句描述
     always @ *
     begin
         case (csr_raddr)

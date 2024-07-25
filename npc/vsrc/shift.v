@@ -1,10 +1,14 @@
 module shift(
-    input [31:0] x,
-    input [4:0] y,
-    input [1:0] fn,
-    output [31:0] out
+    input [31:0] shift_a_i,
+    input [4:0] shift_b_i,
+    input [1:0] shift_op_i,
+    output [31:0] shift_o
 );
 
+    wire [31:0] x = shift_a_i;
+    wire [4:0] y = shift_b_i;
+    wire [1:0] fn = shift_op_i;
+    wire [31:0] out;
     // shift left
     wire [31:0] Q, R, S, T, SL;
 
@@ -47,4 +51,5 @@ module shift(
     assign mux_1 = fn[0]    ?   SR  :   SL;
     assign mux_2 = fn[0]    ?   SA  :   32'b0;
     assign out = fn[1]  ?   mux_2   :   mux_1;
+    assign shift_o = out;
 endmodule

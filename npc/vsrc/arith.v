@@ -15,6 +15,7 @@ module arith(
     wire [1:0] px, gx;
     wire c_16;
     wire[31:0] Y;
+    wire [31:0] S;
 
     fulladder16 adder16_1(
         .x(x[15:0]),

@@ -36,14 +36,14 @@ single_cycle(inst_i *cur_inst) {
 
     if (cur_inst != NULL)
     {
-        cur_inst->pc = top.rootp->top__DOT__current_pc;
-        cur_inst->inst = top.rootp->top__DOT__inst;
+        cur_inst->pc = top.rootp->top__DOT__fetch_module__DOT__pc_reg_module__DOT__current_pc;
+        cur_inst->inst = top.rootp->top__DOT__fetch_module__DOT__ifu_module__DOT__ifu_inst;
     }        
-    top.clk = 0; // 切换时钟状态
+    top.clk_i = 0; // 切换时钟状态
     top.eval();
     contextp->timeInc(1);
     tfp->dump(contextp->time());
-    top.clk = 1; // 切换
+    top.clk_i = 1; // 切换
     top.eval();
     contextp->timeInc(1);
     tfp->dump(contextp->time());
@@ -52,12 +52,12 @@ single_cycle(inst_i *cur_inst) {
 
 void
 reset(int n) {
-    top.rst = 1;
+    top.rst_i = 1;
     while (n-- > 0)
     {
         single_cycle(0);
     }
-    top.rst = 0;
+    top.rst_i = 0;
 }
 
 void
@@ -90,7 +90,7 @@ isa_reg_display()
 uint32_t
 get_reg_val(int idx)
 {
-    return top.rootp->top__DOT__regfile_module__DOT__register[idx];
+    return top.rootp->top__DOT__regfile_module__DOT__regfile[idx];
 }
 
 static void
@@ -101,7 +101,7 @@ update_register_array()
         register_file[i] = get_reg_val(i);
     }
 
-    register_file[32] = top.rootp->top__DOT__current_pc;
+    register_file[32] = top.rootp->top__DOT__fetch_module__DOT__pc_reg_module__DOT__current_pc;
     register_file[33] = top.rootp->top__DOT__csr_module__DOT__mstatus;
     register_file[34] = top.rootp->top__DOT__csr_module__DOT__mepc;
     register_file[35] = top.rootp->top__DOT__csr_module__DOT__mcause;
@@ -121,7 +121,7 @@ isa_reg_str2val(const char *s) {
 
   if(strcmp(reg_name, "pc") == 0)
   {
-    return top.rootp->top__DOT__current_pc;
+    return top.rootp->top__DOT__fetch_module__DOT__pc_reg_module__DOT__current_pc;
   }
   return 0;
 }

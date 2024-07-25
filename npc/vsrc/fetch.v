@@ -11,10 +11,12 @@ module fetch (
     // Internal signals
     wire [31:0] ifu_inst;
     wire [31:0] ifu_pc;
+    wire valid;
 
     // Instantiate IFU
     ifu ifu_module (
         .clk_i(clk_i),
+        .valid_i(valid),
         .ifu_addr_i(pc_o),
         .ifu_inst_o(ifu_inst)
     );
@@ -26,6 +28,7 @@ module fetch (
         .jmp_flag_i(jmp_flag_i),
         .jmp_addr_i(jmp_addr_i),
         .snpc_i(snpc_i),
+        .valid_o(valid),
         .current_pc_o(ifu_pc)
     );
 
@@ -40,22 +43,29 @@ module pc_reg (
     input jmp_flag_i,
     input [31:0] jmp_addr_i,
     input [31:0] snpc_i,
+    output valid_o,
     output [31:0] current_pc_o
 );
 
     parameter RST_ADDR = 32'h80000000;
     // Internal signals
-    reg [1:0] pc_reg_clk_count = 2'b0;
-    reg [31:0] current_pc;
+    reg pc_reg_clk_count = 1'b0;
+    reg [31:0] current_pc = RST_ADDR;
 
-    wire pc_reg_clk;
+    reg pc_reg_clk = 1'b0;
+    reg valid = 1'b0;
     always @(posedge clk_i)
     begin
-        if (pc_reg_clk_count == 2'b10) begin
-            pc_reg_clk_count <= 2'b0;
+        if (rst_i) begin
+            pc_reg_clk_count <= 1'b0;
+            valid <= 1'b1;
+        end else if (pc_reg_clk_count == 1'b1) begin
+            pc_reg_clk_count <= 1'b0;
             pc_reg_clk <= ~pc_reg_clk;
+            valid <= 1'b1;
         end else begin
             pc_reg_clk_count <= pc_reg_clk_count + 1;
+            valid <= 1'b0;
         end
     end        
 
@@ -70,15 +80,17 @@ module pc_reg (
         end
     end
 
+    assign valid_o = valid;
     assign current_pc_o = current_pc;
 endmodule
 
 module ifu (
     input clk_i,
+    input valid_i,
     // input ifu_accept_i,
     input [31:0] ifu_addr_i,
     // output ifu_valid_o,
-    output [31:0] ifu_inst_o,
+    output [31:0] ifu_inst_o
 );
 
     // Internal signals
@@ -87,6 +99,7 @@ module ifu (
     // Instantiate SRAM
     SRAM sram (
         .clk_i(clk_i),
+        .valid(valid_i),
         .fetch_addr_i(ifu_addr_i),
         .fetch_data_o(ifu_inst_i)
     );
@@ -100,16 +113,19 @@ endmodule
 
 module SRAM (
     input clk_i,
+    input valid,
     input [31:0] fetch_addr_i,
     output [31:0] fetch_data_o
-)
+);
 
     import "DPI-C" function int inst_read(input int addr);
 
+    wire [31:0] fetch_addr = fetch_addr_i;   
     // Internal signals
     reg [31:0] fetch_data;
     always @(posedge clk_i) begin
-        fetch_data <= inst_read(fetch_addr_i);
+        if (valid)
+            fetch_data <= inst_read(fetch_addr);
     end
 
     assign fetch_data_o = fetch_data;

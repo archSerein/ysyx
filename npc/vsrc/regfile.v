@@ -1,8 +1,9 @@
 module regfile (
     input clk_i,
-    input reg_src1_i,
-    input reg_src2_i,
-    input reg_dst_i,
+    input rst_i,
+    input [4:0] reg_src1_i,
+    input [4:0] reg_src2_i,
+    input [4:0] reg_dst_i,
     input reg_wen_i,
     input [31:0] reg_wdata_i,
     output [31:0] reg_rdata1_o,
@@ -17,7 +18,13 @@ module regfile (
     // 在 write back 阶段写入
     always @(posedge clk_i)
     begin
+        if (rst_i) begin
+            for (int i = 0; i < 32; i = i + 1) begin
+                regfile[i] <= 32'b0;
+            end
+        end
         if (reg_wen_i) begin
+            $display("reg_dst: %d, reg_wdata: %h", reg_dst_i, reg_wdata_i);
             regfile[reg_dst_i] <= reg_wdata_i;
         end
 

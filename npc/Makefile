@@ -15,6 +15,11 @@ OBJ_DIR = $(BUILD_DIR)/obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
 
 $(shell mkdir -p $(BUILD_DIR))
+# include $(NPC_HOME)/.config.make
+
+# CONFIG_FILE = $(NPC_HOME)/.config
+# config: $(CONFIG_FILE)
+# 	/home/serein/ysyx/ysyx-workbench/npc/config.sh
 
 .PHONY: waves
 waves: $(VCD)
@@ -43,7 +48,7 @@ CSRCS += $(SRC_AUTO_BIND)
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-CXXFLAGS += $(shell llvm-config --cxxflags) #-DCONFIG_ITRACE -DCONFIG_WATCHPOINT  -DCONFIG_MTRACE# -DCONFIG_DIFFTEST # -DCONFIG_FTRACE
+CXXFLAGS += $(shell llvm-config --cxxflags) -DCONFIG_ITRACE -DCONFIG_WATCHPOINT  -DCONFIG_MTRACE# -DCONFIG_DIFFTEST # -DCONFIG_FTRACE
 LDFLAGS += -lreadline $(shell llvm-config --libs) # -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
 
 $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)

@@ -36,7 +36,7 @@ module alu (
     shift shift_module (
         .shift_op_i(alu_op[1:0]),
         .shift_a_i(alu_a),
-        .shift_b_i(alu_b),
+        .shift_b_i(alu_b[4:0]),
         .shift_o(shift_result)
     );
 
