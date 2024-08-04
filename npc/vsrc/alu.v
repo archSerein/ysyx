@@ -41,8 +41,7 @@ module alu (
     );
 
     // 选择器
-    wire [31:0] alu_result_mux1, alu_result_mux2;
-    assign alu_result_mux1 = (alu_op[4]) ? arith_result : 32'h0;
-    assign alu_result_mux2 = (alu_op[4]) ? shift_result : bool_result;
-    assign alu_result_o = (alu_op[5]) ? alu_result_mux2 : alu_result_mux1;
+    assign alu_result_o = {32{alu_op[5:4] == 2'b11}} & arith_result |
+                          {32{alu_op[5:4] == 2'b10}} & shift_result |
+                          {32{alu_op[5:4] == 2'b01}} & bool_result;
 endmodule
