@@ -8,7 +8,7 @@ module decode_stage_2 (
     input  [`STAGE_1_2_BUS_WIDTH-1:0]   decode_stage_1_2_bus_i,
     // csr file
     output [11:0]                       decode_stage_2_csr_addr_o,
-    input  [31:0]                       csr_value,
+    input  [31:0]                       decode_stage_2_csr_value,
     // from register file
     output [ 4:0]                       decode_stage_2_rs1_o,
     output [ 4:0]                       decode_stage_2_rs2_o,
@@ -36,9 +36,13 @@ module decode_stage_2 (
     wire        decode_stage_2_excp_flush;
     wire        decode_stage_2_xret_flush;
     wire        decode_stage_2_break_signal;
+    wire [ 3:0] decode_stage_2_mem_re;
+    wire [ 3:0] decode_stage_2_mem_we;
 
 
     assign {
+        decode_stage_2_mem_re,
+        decode_stage_2_mem_we,
         decode_stage_2_excp_flush,
         decode_stage_2_xret_flush,
         decode_stage_2_break_signal,
@@ -89,6 +93,9 @@ module decode_stage_2 (
     assign decode_stage_2_csr_addr_o = decode_stage_2_csr_addr;
 
     assign decode_stage_2_exe_bus_o = {
+        decode_stage_2_csr_value,       // 165:134
+        decode_stage_2_mem_re,          // 133:130
+        decode_stage_2_mem_we,          // 129:126
         decode_stage_2_pc,              // 125:94
         decode_stage_2_alu_op,          // 93:88
         decode_stage_2_res_from_mem,    // 87:87

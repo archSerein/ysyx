@@ -248,6 +248,16 @@ module decode_stage_1 (
     wire break_signal;
     assign break_signal = inst_ebreak;
 
+    wire [3:0] mem_we, mem_re;
+    assign mem_we    =  {4{inst_sw}} & 4'b1111 |
+                        {4{inst_sh}} & 4'b0011 |
+                        {4{inst_sb}} & 4'b0001;
+    assign mem_re    =  {4{inst_lw}} & 4'b1111 |
+                        {4{inst_lh}} & 4'b0111 |
+                        {4{inst_lb}} & 4'b0101 |
+                        {4{inst_lhu}} & 4'b0011 |
+                        {4{inst_lbu}} & 4'b0001;
+
     always @(posedge clk_i) begin
         if (rst_i) begin
             valid <= 0;
@@ -262,6 +272,8 @@ module decode_stage_1 (
 
     // stage 1 to stage 2 bus
     assign stage_1_2_bus_o = {
+                                mem_re,             // 115:112
+                                mem_we,             // 111:108
                                 excp_flush,         // 107:107
                                 xret_flush,         // 106:106
                                 break_signal,       // 105:105
