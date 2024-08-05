@@ -1,8 +1,9 @@
-`include "riscv_param.h"
+`include "riscv_param.vh"
 // decode stage 1
 module decode_stage_1 (
     input                               clk_i,
     input                               rst_i,
+    input                               fetch_valid_i,
     input [`FETCH_DECODE_BUS_WIDTH-1:0] fetch_decode_bus_i,
     output[`STAGE_1_2_BUS_WIDTH-1:0]    stage_1_2_bus_o,
     output                              valid_o
@@ -73,6 +74,7 @@ module decode_stage_1 (
 
     wire [31:0]     decode_pc;
     wire [31:0]     decode_inst;
+    reg valid;
     reg  [`FETCH_DECODE_BUS_WIDTH-1:0] fetch_decode_bus;
     assign {decode_pc, decode_inst} = fetch_decode_bus;
 
@@ -82,88 +84,88 @@ module decode_stage_1 (
     assign inst_rs1    = decode_inst[19:15];
     assign inst_rs2    = decode_inst[24:20];
     assign inst_rd     = decode_inst[11:7];
-    assign imm_i       = { {20{inst_i[31]}}, inst_i[31:20] };
-    assign imm_s       = { {20{inst_i[31]}}, inst_i[31], inst_i[7], inst_i[30:25], inst_i[11:8] };
-    assign imm_b       = { {19{inst_i[31]}}, inst_i[31], inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0 };
-    assign imm_u       = { inst_i[31:12], 12'b0 };
-    assign imm_j       = { {12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0 };
+    assign imm_i       = { {20{decode_inst[31]}}, decode_inst[31:20] };
+    assign imm_s       = { {20{decode_inst[31]}}, decode_inst[31], decode_inst[7], decode_inst[30:25], decode_inst[11:8] };
+    assign imm_b       = { {19{decode_inst[31]}}, decode_inst[31], decode_inst[7], decode_inst[30:25], decode_inst[11:8], 1'b0 };
+    assign imm_u       = { decode_inst[31:12], 12'b0 };
+    assign imm_j       = { {12{decode_inst[31]}}, decode_inst[19:12], decode_inst[20], decode_inst[30:21], 1'b0 };
 
     // 不包括 fence 和 fence.i 指令
-    assign optype      =    {3{inst_decode == 7'b0110011}} & `INST_R |
-                            {3{inst_decode == 7'b0100011}} & `INST_S |
-                            {3{inst_decode == 7'b1100011}} & `INST_B |
-                            {3{inst_decode == 7'b1101111}} & `INST_J |
-                            {3{inst_decode == 7'b0110111}} & `INST_U |
-                            {3{inst_decode == 7'b0010111}} & `INST_U |
-                            {3{inst_decode == 7'b0010011}} & `INST_I |
-                            {3{inst_decode == 7'b0000011}} & `INST_I |
-                            {3{inst_decode == 7'b1100111}} & `INST_I |
-                            {3{inst_decode == 7'b1110011}} & `INST_PRIV;
+    assign optype      =    {3{inst_opcode == 7'b0110011}} & `INST_R |
+                            {3{inst_opcode == 7'b0100011}} & `INST_S |
+                            {3{inst_opcode == 7'b1100011}} & `INST_B |
+                            {3{inst_opcode == 7'b1101111}} & `INST_J |
+                            {3{inst_opcode == 7'b0110111}} & `INST_U |
+                            {3{inst_opcode == 7'b0010111}} & `INST_U |
+                            {3{inst_opcode == 7'b0010011}} & `INST_I |
+                            {3{inst_opcode == 7'b0000011}} & `INST_I |
+                            {3{inst_opcode == 7'b1100111}} & `INST_I |
+                            {3{inst_opcode == 7'b1110011}} & `INST_PRIV;
                             
     assign inst_lui    = inst_opcode == 7'b0110111;
     assign inst_auipc  = inst_opcode == 7'b0010111;
     assign inst_jal    = inst_opcode == 7'b1101111;
-    assign inst_jalr   = inst_decode == 7'b1101111 && inst_funct3 == 3'b000;
-    assign inst_beq    = inst_decode == 7'b1100011 && inst_funct3 == 3'b000;
-    assign inst_bne    = inst_decode == 7'b1100011 && inst_funct3 == 3'b001;
-    assign inst_blt    = inst_decode == 7'b1100011 && inst_funct3 == 3'b100;
-    assign inst_bge    = inst_decode == 7'b1100011 && inst_funct3 == 3'b101;
-    assign inst_bltu   = inst_decode == 7'b1100011 && inst_funct3 == 3'b110;
-    assign inst_bgeu   = inst_decode == 7'b1100011 && inst_funct3 == 3'b111;
-    assign inst_lb     = inst_decode == 7'b0000011 && inst_funct3 == 3'b000;
-    assign inst_lh     = inst_decode == 7'b0000011 && inst_funct3 == 3'b001;
-    assign inst_lw     = inst_decode == 7'b0000011 && inst_funct3 == 3'b010;
-    assign inst_lbu    = inst_decode == 7'b0000011 && inst_funct3 == 3'b100;
-    assign inst_lhu    = inst_decode == 7'b0000011 && inst_funct3 == 3'b101;
-    assign inst_sb     = inst_decode == 7'b0100011 && inst_funct3 == 3'b000;
-    assign inst_sh     = inst_decode == 7'b0100011 && inst_funct3 == 3'b001;
-    assign inst_sw     = inst_decode == 7'b0100011 && inst_funct3 == 3'b010;
-    assign inst_addi   = inst_decode == 7'b0010011 && inst_funct3 == 3'b000;
-    assign inst_slti   = inst_decode == 7'b0010011 && inst_funct3 == 3'b010;
-    assign inst_sltiu  = inst_decode == 7'b0010011 && inst_funct3 == 3'b011;
-    assign inst_xori   = inst_decode == 7'b0010011 && inst_funct3 == 3'b100;
-    assign inst_ori    = inst_decode == 7'b0010011 && inst_funct3 == 3'b110;
-    assign inst_andi   = inst_decode == 7'b0010011 && inst_funct3 == 3'b111;
-    assign inst_slli   = inst_decode == 7'b0010011 && inst_funct3 == 3'b001 && 
+    assign inst_jalr   = inst_opcode == 7'b1101111 && inst_funct3 == 3'b000;
+    assign inst_beq    = inst_opcode == 7'b1100011 && inst_funct3 == 3'b000;
+    assign inst_bne    = inst_opcode == 7'b1100011 && inst_funct3 == 3'b001;
+    assign inst_blt    = inst_opcode == 7'b1100011 && inst_funct3 == 3'b100;
+    assign inst_bge    = inst_opcode == 7'b1100011 && inst_funct3 == 3'b101;
+    assign inst_bltu   = inst_opcode == 7'b1100011 && inst_funct3 == 3'b110;
+    assign inst_bgeu   = inst_opcode == 7'b1100011 && inst_funct3 == 3'b111;
+    assign inst_lb     = inst_opcode == 7'b0000011 && inst_funct3 == 3'b000;
+    assign inst_lh     = inst_opcode == 7'b0000011 && inst_funct3 == 3'b001;
+    assign inst_lw     = inst_opcode == 7'b0000011 && inst_funct3 == 3'b010;
+    assign inst_lbu    = inst_opcode == 7'b0000011 && inst_funct3 == 3'b100;
+    assign inst_lhu    = inst_opcode == 7'b0000011 && inst_funct3 == 3'b101;
+    assign inst_sb     = inst_opcode == 7'b0100011 && inst_funct3 == 3'b000;
+    assign inst_sh     = inst_opcode == 7'b0100011 && inst_funct3 == 3'b001;
+    assign inst_sw     = inst_opcode == 7'b0100011 && inst_funct3 == 3'b010;
+    assign inst_addi   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b000;
+    assign inst_slti   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b010;
+    assign inst_sltiu  = inst_opcode == 7'b0010011 && inst_funct3 == 3'b011;
+    assign inst_xori   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b100;
+    assign inst_ori    = inst_opcode == 7'b0010011 && inst_funct3 == 3'b110;
+    assign inst_andi   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b111;
+    assign inst_slli   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b001 && 
                             inst_funct7 == 7'b0000000;
-    assign inst_srli   = inst_decode == 7'b0010011 && inst_funct3 == 3'b101 &&
+    assign inst_srli   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b101 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_srai   = inst_decode == 7'b0010011 && inst_funct3 == 3'b101 &&
+    assign inst_srai   = inst_opcode == 7'b0010011 && inst_funct3 == 3'b101 &&
                             inst_funct7 == 7'b0100000;
-    assign inst_add    = inst_decode == 7'b0110011 && inst_funct3 == 3'b000 &&
+    assign inst_add    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b000 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_sub    = inst_decode == 7'b0110011 && inst_funct3 == 3'b000 &&
+    assign inst_sub    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b000 &&
                             inst_funct7 == 7'b0100000;
-    assign inst_sll    = inst_decode == 7'b0110011 && inst_funct3 == 3'b001 &&
+    assign inst_sll    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b001 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_slt    = inst_decode == 7'b0110011 && inst_funct3 == 3'b010 &&
+    assign inst_slt    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b010 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_sltu   = inst_decode == 7'b0110011 && inst_funct3 == 3'b011 &&
+    assign inst_sltu   = inst_opcode == 7'b0110011 && inst_funct3 == 3'b011 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_xor    = inst_decode == 7'b0110011 && inst_funct3 == 3'b100 &&
+    assign inst_xor    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b100 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_srl    = inst_decode == 7'b0110011 && inst_funct3 == 3'b101 &&
+    assign inst_srl    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b101 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_sra    = inst_decode == 7'b0110011 && inst_funct3 == 3'b101 &&
+    assign inst_sra    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b101 &&
                             inst_funct7 == 7'b0100000;
-    assign inst_or     = inst_decode == 7'b0110011 && inst_funct3 == 3'b110 &&
+    assign inst_or     = inst_opcode == 7'b0110011 && inst_funct3 == 3'b110 &&
                             inst_funct7 == 7'b0000000;
-    assign inst_and    = inst_decode == 7'b0110011 && inst_funct3 == 3'b111 &&
+    assign inst_and    = inst_opcode == 7'b0110011 && inst_funct3 == 3'b111 &&
                             inst_funct7 == 7'b0000000;
     // privileged instruction
-    assign inst_ecall  = inst_decode == 7'b1110011 && inst_funct3 == 3'b000 &&
+    assign inst_ecall  = inst_opcode == 7'b1110011 && inst_funct3 == 3'b000 &&
                             inst_funct7 == 7'b0000000 && inst_rd == 5'b00000 &&
                             inst_rs1 == 5'b00000 && inst_rs2 == 5'b00000;
-    assign inst_ebreak = inst_decode == 7'b1110011 && inst_funct3 == 3'b000 &&
+    assign inst_ebreak = inst_opcode == 7'b1110011 && inst_funct3 == 3'b000 &&
                             inst_funct7 == 7'b0000000 && inst_rd == 5'b00000 &&
                             inst_rs1 == 5'b00000 && inst_rs2 == 5'b00001;
-    assign inst_mret   = inst_decode == 7'b1110011 && inst_funct3 == 3'b000 &&
+    assign inst_mret   = inst_opcode == 7'b1110011 && inst_funct3 == 3'b000 &&
                             inst_funct7 == 7'b0011000 && inst_rd == 5'b00000 &&
                             inst_rs1 == 5'b00000 && inst_rs2 == 5'b00010;
 
     // csr instruction
-    assign inst_csrrw  = inst_decode == 7'b1110011 && inst_funct3 == 3'b001;
-    assign inst_csrrs  = inst_decode == 7'b1110011 && inst_funct3 == 3'b010;
+    assign inst_csrrw  = inst_opcode == 7'b1110011 && inst_funct3 == 3'b001;
+    assign inst_csrrs  = inst_opcode == 7'b1110011 && inst_funct3 == 3'b010;
 
     // control signal generation
     wire [5:0] alu_op;
@@ -264,9 +266,9 @@ module decode_stage_1 (
                                 xret_flush,         // 106:106
                                 break_signal,       // 105:105
                                 jmp_option,         // 104:103
-                                rs1,                // 102:98
-                                rs2,                // 97:93
-                                rd,                 // 92:88
+                                inst_rs1,                // 102:98
+                                inst_rs2,                // 97:93
+                                inst_rd,                 // 92:88
                                 imm,                // 87:56
                                 alu_op,             // 55:50
                                 src1_is_pc,         // 49:49
@@ -276,7 +278,7 @@ module decode_stage_1 (
                                 gr_we,              // 45:45
                                 csr_we,             // 44:44
                                 csr_addr,           // 43:32
-                                decode_pc,          // 31:0
+                                decode_pc           // 31:0
                             };
     assign valid_o = valid;
 endmodule             

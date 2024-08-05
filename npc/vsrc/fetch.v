@@ -1,4 +1,4 @@
-`inlcude "riscv_param.v"
+`inlcude "riscv_param.vh"
 
 module fetch (
     input                               clk_i,

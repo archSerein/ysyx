@@ -42,7 +42,7 @@ init_mem(char *path)
 }
 
 extern "C" int
-pmem_read(int raddr, int len)
+pmem_read(int raddr)
 {
     if (raddr == 0xa0000048)
         return  (int)(std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -52,62 +52,48 @@ pmem_read(int raddr, int len)
                         std::chrono::system_clock::now().time_since_epoch()).count() >> 32) ;
     uint8_t *paddr = guest_to_host((uint32_t)raddr);
 
-    switch (len)
-    {
-        case 4:
-            // mtrace
-            #ifdef CONFIG_MTRACE
-                printf("read %d bytes at addr = %08x, value = %08x\n",
-                        len, raddr, *(uint32_t *)paddr);
-            #endif // CONFIG_MTRACE
-            return *(uint32_t *)paddr;
-        case 2:
-            // mtrace
-            #ifdef CONFIG_MTRACE
-                printf("read %d bytes at addr = %08x, value = %08x\n",
-                        len, raddr, *(uint32_t *)paddr);
-            #endif // CONFIG_MTRACE
-            return *(uint16_t *)paddr;
-        case 1:
-            // mtrace
-            #ifdef CONFIG_MTRACE
-                printf("read %d bytes at addr = %08x, value = %08x\n",
-                        len, raddr, *(uint32_t *)paddr);
-            #endif // CONFIG_MTRACE
-            return *(uint8_t *)paddr;
-        case 0:
-            return 0;
-        default:
-            printf("pmem_read fault at raddr %08x len %d\n", raddr, len);
-            return -1;
-    }
-
+    return *(uint32_t *)paddr;
 }
 
 extern "C" void
-pmem_write(int vaddr, int len, int data)
+pmem_write(int vaddr, int wdata, char wmask)
 {
     if (vaddr == 0xa00003f8) {
-        printf("%c", data & 0xff);
+        printf("%c", wdata & 0xff);
         return;
     }
     uint8_t *paddr = guest_to_host((uint32_t)vaddr);
-    switch(len)
+    uint32_t rdata = *(uint32_t *)paddr;
+    switch(wmask)
     {
-        case 4:
-            *(uint32_t *)paddr = data; break;
-        case 2:
-            *(uint16_t *)paddr = data; break;
-        case 1:
-            *(uint8_t *)paddr = data; break;
+        case 0x0f:
+            *(uint32_t *)paddr = wdata;
+            break;
+        case 0x0c:
+            *(uint32_t *)paddr = (wdata & 0xffff0000) | (rdata & 0x0000ffff);
+            break;
+        case 0x08:
+            *(uint32_t *)paddr = (wdata & 0xff000000) | (rdata & 0x00ffffff);
+            break;
+        case 0x04:
+            *(uint32_t *)paddr = (wdata & 0x00ff0000) | (rdata & 0xff00ffff);
+            break;
+        case 0x03:
+            *(uint32_t *)paddr = (wdata & 0x0000ffff) | (rdata & 0xffff0000);
+            break;
+        case 0x02:
+            *(uint32_t *)paddr = (wdata & 0x0000ff00) | (rdata & 0xffff00ff); 
+            break;
+        case 0x01:
+            *(uint32_t *)paddr = (wdata & 0x000000ff) | (rdata & 0xffffff00);
+            break;
         default:
-            printf("paddr_write fault\n");
+            printf("paddr_write fault waddr: %x\n", vaddr);
     }
 
     // mtrace
     #ifdef CONFIG_MTRACE
-        printf("write %d bytes at addr = %08x, value = %08x\n",
-                len, vaddr, data);
+        printf("pmem_write: %x %x %x\n", vaddr, wdata, wmask);
     #endif // CONFIG_MTRACE
 }
 
@@ -122,21 +108,18 @@ inst_read(int vaddr)
 uint32_t
 vaddr_read(uint32_t addr, int len)
 {
-    int vaddr = (int)addr;
-    int ret;
+    uint8_t *paddr = guest_to_host((uint32_t)addr);
     switch(len)
     {
         case 1:
-            ret = pmem_read(vaddr, 1);
+            return (uint32_t)*(uint8_t *)paddr;
         case 2:
-            ret = pmem_read(vaddr, 2);
+            return (uint32_t)*(uint16_t *)paddr;
         case 4:
-            ret = pmem_read(vaddr, 4);
+            return (uint32_t)*(uint32_t *)paddr;
         default:
             assert(0);
     }
-
-    return (uint32_t)ret;
 }
 
 void
