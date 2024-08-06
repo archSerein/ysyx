@@ -1,26 +1,27 @@
-module execute (
+module exu (
     input                               clk_i,
     input                               rst_i,
-    input                               decode_stage_2_valid_i,
-    input  [`STAGE_2_EXE_BUS_WIDTH-1:0] decode_stage_2_exe_bus_i,
+    input                               adu_valid_i,
+    input  [`ADU_EXU_BUS_WIDTH-1:0]     adu_exu_bus_i,
     // memfile
     output [31:0]                       mem_addr_o,
     output [31:0]                       mem_wdata_o,
     output [ 3:0]                       mem_we_mask_o,
     output                              mem_wen_o,
     output                              mem_ren_o,
-    output [`EX_TO_MEM_BUS_WIDTH-1:0]   ex_ms_bus_o,
+    output [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_o,
     output                              valid_o
 );
 
     reg valid;
-    reg [`STAGE_2_EXE_BUS_WIDTH-1:0] decode_stage_2_exe_bus;
+    reg  [`ADU_EXU_BUS_WIDTH-1:0]     adu_exu_bus;
     wire [ 5:0]           ex_alu_op;
     wire [31:0]           ex_alu_src1;
     wire [31:0]           ex_alu_src2;
     wire                  ex_res_from_mem;
     wire                  ex_res_from_csr;
     wire                  ex_gr_we;
+    wire                  ex_csr_we;
     wire [ 4:0]           ex_rd;
     wire [31:0]           ex_pc;
     wire                  ex_xret_flush;
@@ -33,24 +34,25 @@ module execute (
     wire [31:0]           ex_csr_value;
 
     assign {
-        ex_csr_value,
-        ex_mem_re,
-        ex_mem_we,
+        ex_excp_flush,
+        ex_xret_flush,
+        ex_break_signal,
         ex_pc,
+        ex_alu_src1,
+        ex_alu_src2,
         ex_alu_op,
         ex_res_from_mem,
         ex_res_from_csr,
         ex_gr_we,
+        ex_csr_we,
+        ex_mem_re,
+        ex_mem_we,
         ex_rd,
-        ex_alu_src1,
-        ex_alu_src2,
-        ex_csr_addr,
         ex_jmp_flag,
-        ex_excp_flush,
-        ex_xret_flush,
-        ex_break_signal
-    } = decode_stage_2_exe_bus;
-        
+        ex_csr_addr,
+        ex_csr_value
+    } = adu_exu_bus;
+
     wire [31:0] ex_alu_result;
     alu alu_module (
         .alu_op_i       (ex_alu_op),
@@ -84,7 +86,8 @@ module execute (
     wire [31:0] ex_jmp_target;
     assign ex_jmp_target = ex_alu_result;
 
-    assign ex_ms_bus_o = {
+    assign exu_lsu_bus_o = {
+        ex_csr_we,              // 158:158
         mem_addr_mask,          // 157:156
         ex_mem_re,              // 155:152
         csr_addr,               // 151:140
@@ -103,11 +106,11 @@ module execute (
     };
     always @(posedge clk_i) begin
         if (rst_i) begin
-            decode_stage_2_exe_bus <= 0;
+            adu__exu_bus <= 0;
             valid <= 0;
-        end else if (decode_stage_2_valid_i) begin
+        end else if (adu_valid_i) begin
             valid <= 1;
-            decode_stage_2_exe_bus <= decode_stage_2_exe_bus_i;
+            adu_exu_bus <= adu_exu_bus_i;
         end else begin
             valid <= 0;
         end

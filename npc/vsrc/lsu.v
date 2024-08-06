@@ -1,18 +1,17 @@
-module mem (
+module lsu (
     input                               clk_i,
     input                               rst_i,
-    input                               execute_valid_i,
-    input  [`EX_TO_MEM_BUS_WIDTH-1:0]   execute_ms_bus_i,
+    input                               exu_valid_i,
+    input  [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_i,
     // memfile
     input  [31:0]                       mem_rdata_i,
 
-    output [`MEM_TO_WB_BUS_WIDTH-1:0]   ms_wb_bus_o,
+    output [`LSU_WBU_BUS_WIDTH-1:0]     lsu_wbu_bus_o,
     output                              valid_o
 );
 
     reg valid;
-    reg [`EX_TO_MEM_BUS_WIDTH-1:0] execute_mem_bus;
-
+    reg [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
     wire [31:0] ms_pc;
     wire [31:0] ms_alu_result;
     wire [31:0] ms_csr_value;
@@ -22,7 +21,6 @@ module mem (
     wire        ms_gr_we;
     wire [ 4:0] ms_rd;
     wire [ 3:0] ms_mem_re;
-    wire [ 3:0] ms_mem_we;
     wire [11:0] ms_csr_addr;
     wire        ms_jmp_flag;
     wire        ms_break_signal;
@@ -30,8 +28,10 @@ module mem (
     wire        ms_xret_flush;
     wire [ 1:0] ms_mem_addr_mask;
     wire [ 3:0] ms_mem_re;
+    wire        ms_csr_we;
     
     assign {
+        ms_csr_we,
         ms_mem_addr_mask,
         ms_mem_re,
         ms_csr_addr
@@ -40,7 +40,6 @@ module mem (
         ms_csr_value,
         ms_res_from_mem,
         ms_res_from_csr,
-        ms_gr_we,
         ms_gr_we,
         ms_rd,
         ms_excp_flush,
@@ -79,16 +78,17 @@ module mem (
     always @(posedge clk_i) begin
         if (rst_i) begin
             valid <= 0;
-            execute_mem_bus <= 0;
-        end else if (execute_valid_i) begin
+            exu_lsu_bus <= 0;
+        end else if (exu_valid_i) begin
             valid <= 1;
-            execute_mem_bus <= execute_ms_bus_i;
+            exu_lsu_bus <= exu_lsu_bus_i;
         end else begin
             valid <= 0;
         end
     end
 
-    assign ms_to_wb_bus_o = {
+    assign lsu_wbu_bus_o = {
+        ms_csr_we,
         ms_final_result,
         ms_gr_we,
         ms_rd,
@@ -100,3 +100,5 @@ module mem (
         ms_excp_flush,
         ms_xret_flush
     };
+    /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 32 + 1 + 1 + 1 = 119*/
+endmodule

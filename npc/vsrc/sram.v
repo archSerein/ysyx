@@ -2,7 +2,7 @@ module sram (
     input               clk_i,
     input               sram_enable,
     input   [31:0]      addr_i,
-    input   [31:0]      data_o
+    output  [31:0]      data_o
 );
 
     import "DPI-C" function int inst_read(input int addr);
