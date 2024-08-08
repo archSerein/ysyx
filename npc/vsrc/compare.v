@@ -2,7 +2,7 @@ module compare (
     input [31:0] compare_a_i,
     input [31:0] compare_b_i,
     input [2:0] compare_fn_i,
-    output [31:0] compare_o
+    output      compare_o
 );
 
     wire [31:0] x = compare_a_i;
@@ -31,20 +31,19 @@ module compare (
                     VF;            // undifined -> overflow
     */
 
-    wire ZF, NF, VF, CF, result;
+    wire ZF, NF, VF, CF;
     assign ZF = (|arith_result) ? 1'b0 : 1'b1;
     assign NF = (arith_result[31] == 1'b1) ? 1'b1 : 1'b0;
     assign VF = (~(x[31] ^ y[31] ^ 1'b1)) & (x[31] ^ arith_result[31]);
     assign CF = arith_flag[2] | (arith_flag[1] & arith_flag[0]);
 
-    assign result = (fn == 3'b000) & ZF |
-                    (fn == 3'b001) & ~ZF |
-                    (fn == 3'b010) & ((~NF & ~VF) | (NF & VF)) |
-                    (fn == 3'b011) & NF |
-                    (fn == 3'b100) & (CF & ~ZF) |
-                    (fn == 3'b101) & ~CF |
-                    (fn == 3'b110) & CF |
-                    (fn == 3'b111) & VF;
+    assign compare_o =  (fn == 3'b000) & ZF |
+                        (fn == 3'b001) & ~ZF |
+                        (fn == 3'b010) & ((~NF & ~VF) | (NF & VF)) |
+                        (fn == 3'b011) & NF |
+                        (fn == 3'b100) & (CF & ~ZF) |
+                        (fn == 3'b101) & ~CF |
+                        (fn == 3'b110) & CF |
+                        (fn == 3'b111) & VF;
 
-    assign compare_o = {{31'b0}, result};
 endmodule

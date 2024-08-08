@@ -1,3 +1,5 @@
+`include "riscv_param.vh"
+
 module wbu (
     input                           clk_i,
     input                           rst_i,
@@ -12,13 +14,12 @@ module wbu (
     output [31:0]                   csr_wdata_o,
     output                          csr_we_o,
     output [`WBU_IFU_BUS_WIDTH-1:0] wbu_ifu_bus_o,
-    output                          valid_o
+    output                          finish_o
 );
 
-    reg valid;
+    reg finish;
     reg [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus;
 
-    wire [31:0] wbu_pc;
     wire [31:0] wbu_final_result;
     wire        wbu_gr_we;
     wire [ 4:0] wbu_rd;
@@ -36,7 +37,6 @@ module wbu (
         wbu_gr_we,
         wbu_rd,
         wbu_csr_addr,
-        wbu_pc,
         wbu_jmp_flag,
         wbu_jmp_target,
         wbu_break_signal,
@@ -44,23 +44,23 @@ module wbu (
         wbu_xret_flush
     } = lsu_wbu_bus;
 
-    assign rf_we_o = wbu_gr_we && lsu_valid;
+    assign rf_we_o = wbu_gr_we && finish;
     assign rf_rd_o = wbu_rd;
     assign rf_wdata_o = wbu_final_result;
-    assign csr_we_o = wbu_csr_we && lsu_valid;
+    assign csr_we_o = wbu_csr_we && finish;
     assign csr_addr_o = wbu_csr_addr;
     assign csr_wdata_o = wbu_final_result;
-    assign valid_o = valid;
+    assign finish_o = finish;
 
     always @(posedge clk_i) begin
         if (rst_i) begin
-            valid <= 1'b0;
+            finish <= 1'b0;
             lsu_wbu_bus <= 0;
         end else if (lsu_valid_i) begin
-            valid <= 1'b1;
+            finish <= 1'b1;
             lsu_wbu_bus <= lsu_wbu_bus_i;
         end else begin
-            valid <= 1'b0;
+            finish <= 1'b0;
         end
     end
 

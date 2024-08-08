@@ -1,3 +1,4 @@
+`include "riscv_param.vh"
 module bdu (
     input                           clk_i,
     input                           rst_i,
@@ -20,8 +21,9 @@ module bdu (
 
     wire [31:0] bdu_pc;
     wire [31:0] bdu_inst;
+    wire [31:0] bdu_snpc;
 
-    assign {bdu_pc, bdu_inst} = ifu_bdu_bus;
+    assign {bdu_pc, bdu_inst, bdu_snpc} = ifu_bdu_bus;
 
     always @(posedge clk_i) begin
         if (rst_i) begin
@@ -56,6 +58,10 @@ module bdu (
     wire        inst_bge;
     wire        inst_bltu;
     wire        inst_bgeu;
+    wire        inst_slti;
+    wire        inst_sltiu;
+    wire        inst_slt;
+    wire        inst_sltu;
 
     assign bdu_rs1 = bdu_inst[19:15];
     assign bdu_rs2 = bdu_inst[24:20];
@@ -66,7 +72,7 @@ module bdu (
     assign bdu_opcode = bdu_inst[6:0];
 
     assign bdu_imm_i = { {20{bdu_inst[31]}}, bdu_inst[31:20] };
-    assign bdu_imm_s = { {20{bdu_inst[31]}}, bdu_inst[31], bdu_inst[7], bdu_inst[30:25], bdu_inst[11:8] };
+    assign bdu_imm_s = { {20{bdu_inst[31]}}, bdu_inst[31:25], bdu_inst[11:7] };
     assign bdu_imm_b = { {19{bdu_inst[31]}}, bdu_inst[31], bdu_inst[7], bdu_inst[30:25], bdu_inst[11:8], 1'b0 };
     assign bdu_imm_u = { bdu_inst[31:12], 12'b0 };
     assign bdu_imm_j = { {12{bdu_inst[31]}}, bdu_inst[19:12], bdu_inst[20], bdu_inst[30:21], 1'b0 };
@@ -82,11 +88,11 @@ module bdu (
                             {3{bdu_opcode == 7'b1100111}} & `INST_I |
                             {3{bdu_opcode == 7'b1110011}} & `INST_PRIV;
 
-    assign bdu_imm  =   {3{bdu_optype == `INST_S}} & bdu_imm_s |
-                        {3{bdu_optype == `INST_B}} & bdu_imm_b |
-                        {3{bdu_optype == `INST_J}} & bdu_imm_j |
-                        {3{bdu_optype == `INST_U}} & bdu_imm_u |
-                        {3{bdu_optype == `INST_I}} & bdu_imm_i;
+    assign bdu_imm  =   {32{bdu_optype == `INST_S}} & bdu_imm_s |
+                        {32{bdu_optype == `INST_B}} & bdu_imm_b |
+                        {32{bdu_optype == `INST_J}} & bdu_imm_j |
+                        {32{bdu_optype == `INST_U}} & bdu_imm_u |
+                        {32{bdu_optype == `INST_I}} & bdu_imm_i;
 
     assign inst_beq    = bdu_opcode == 7'b1100011 && bdu_funct3 == 3'b000;
     assign inst_bne    = bdu_opcode == 7'b1100011 && bdu_funct3 == 3'b001;
@@ -94,6 +100,12 @@ module bdu (
     assign inst_bge    = bdu_opcode == 7'b1100011 && bdu_funct3 == 3'b101;
     assign inst_bltu   = bdu_opcode == 7'b1100011 && bdu_funct3 == 3'b110;
     assign inst_bgeu   = bdu_opcode == 7'b1100011 && bdu_funct3 == 3'b111;
+    assign inst_slti   = bdu_opcode == 7'b0010011 && bdu_funct3 == 3'b010;
+    assign inst_sltiu  = bdu_opcode == 7'b0010011 && bdu_funct3 == 3'b011;
+    assign inst_slt    = bdu_opcode == 7'b0110011 && bdu_funct3 == 3'b010 &&
+                            bdu_funct7 == 7'b0000000;
+    assign inst_sltu   = bdu_opcode == 7'b0110011 && bdu_funct3 == 3'b011 &&
+                            bdu_funct7 == 7'b0000000;
 
     wire [2:0] bdu_compare_fn;
     assign bdu_compare_fn = {3{inst_beq}} & 3'b000 |
@@ -101,31 +113,45 @@ module bdu (
                             {3{inst_blt}} & 3'b011 |
                             {3{inst_bge}} & 3'b010 |
                             {3{inst_bltu}} & 3'b101 |
-                            {3{inst_bgeu}} & 3'b110;
+                            {3{inst_bgeu}} & 3'b110 |
+                            {3{inst_slti}} & 3'b011 |
+                            {3{inst_sltiu}} & 3'b101 |
+                            {3{inst_slt}} & 3'b011 |
+                            {3{inst_sltu}} & 3'b101;
 
-    wire [31:0] bdu_compare_result;
+    wire        bdu_compare_result;
+    wire [31:0] compare_src2;
+    assign compare_src2 = (inst_sltiu | inst_slti) ? bdu_imm : bdu_rs2_value_i;
     compare compare_module (
         .compare_a_i(bdu_rs1_value_i),
-        .compare_b_i(bdu_rs2_value_i),
+        .compare_b_i(compare_src2),
         .compare_fn_i(bdu_compare_fn),
         .compare_o(bdu_compare_result)
     );
 
     wire br_taken = (inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu) &
-                    bdu_compare_result[0];
+                    bdu_compare_result;
     
     wire [11:0] bdu_csr_addr;
     assign bdu_csr_addr = bdu_inst[31:20];
 
+    wire res_from_compare;
+    assign res_from_compare = inst_slt | inst_sltu | inst_slti | inst_sltiu;
+
     assign bdu_adu_bus_o = {
+        res_from_compare,
+        bdu_compare_result,
+        bdu_snpc,
         bdu_pc,
         bdu_imm,
         bdu_rs1_value_i,
         bdu_rs2_value_i,
+        bdu_rs1,
+        bdu_rs2,
         bdu_rd,
         br_taken,
         bdu_csr_addr,
-        bdu_csr_value_i
+        bdu_csr_value_i,
         bdu_optype,
         bdu_opcode,
         bdu_funct3,
@@ -136,4 +162,5 @@ module bdu (
     assign bdu_rs1_o = bdu_rs1;
     assign bdu_rs2_o = bdu_rs2;
     assign bdu_csr_addr_o = bdu_csr_addr;
+    assign valid_o = valid;
 endmodule

@@ -1,3 +1,5 @@
+`include "riscv_param.vh"
+
 module exu (
     input                               clk_i,
     input                               rst_i,
@@ -23,7 +25,6 @@ module exu (
     wire                  ex_gr_we;
     wire                  ex_csr_we;
     wire [ 4:0]           ex_rd;
-    wire [31:0]           ex_pc;
     wire                  ex_xret_flush;
     wire                  ex_excp_flush;
     wire [11:0]           ex_csr_addr;
@@ -32,14 +33,21 @@ module exu (
     wire [ 3:0]           ex_mem_re;
     wire [ 3:0]           ex_mem_we;
     wire [31:0]           ex_csr_value;
+    wire [31:0]           ex_rs2_value;
+    wire [31:0]           ex_snpc;
+    wire                  compare_result;
+    wire                  res_from_compare;
 
     assign {
+        res_from_compare,
+        compare_result,
         ex_excp_flush,
         ex_xret_flush,
         ex_break_signal,
-        ex_pc,
+        ex_snpc,
         ex_alu_src1,
         ex_alu_src2,
+        ex_rs2_value,
         ex_alu_op,
         ex_res_from_mem,
         ex_res_from_csr,
@@ -61,7 +69,6 @@ module exu (
         .alu_result_o   (ex_alu_result)
     );
 
-    wire [ 3:0] mem_wmask;
     wire [ 3:0] sb_we, sh_we;
     wire [ 1:0] mem_addr_mask;
 
@@ -79,19 +86,34 @@ module exu (
                     mem_addr_mask == 2'b00,
                     mem_addr_mask == 2'b00
                 };
-    assign mem_wmask =  {4{ex_mem_we == 4'b1111}} & 4'b1111 |
-                        {4{ex_mem_we == 4'b0011}} & sh_we   |
-                        {4{ex_mem_we == 4'b0001}} & sb_we;
+    assign mem_we_mask_o =  ({4{ex_mem_we == 4'b1111}} & 4'b1111) |
+                            ({4{ex_mem_we == 4'b0011}} & sh_we)   |
+                            ({4{ex_mem_we == 4'b0001}} & sb_we);
 
+    wire [31:0] mem_byte_wdata;
+    assign mem_byte_wdata = {
+        {8{sb_we[3]}} & ex_rs2_value[7:0],
+        {8{sb_we[2]}} & ex_rs2_value[7:0],
+        {8{sb_we[1]}} & ex_rs2_value[7:0],
+        {8{sb_we[0]}} & ex_rs2_value[7:0]
+    };
+
+    wire [31:0] mem_half_wdata;
+    assign mem_half_wdata = {
+        {16{sh_we[3]}} & ex_rs2_value[15:0],
+        {16{sh_we[0]}} & ex_rs2_value[15:0]
+    };
     wire [31:0] ex_jmp_target;
     assign ex_jmp_target = ex_alu_result;
 
     assign exu_lsu_bus_o = {
+        res_from_compare,
+        compare_result,
+        ex_snpc,
         ex_csr_we,              // 158:158
         mem_addr_mask,          // 157:156
         ex_mem_re,              // 155:152
-        csr_addr,               // 151:140
-        ex_pc,                  // 139:108
+        ex_csr_addr,               // 151:140
         ex_alu_result,          // 107:76
         ex_csr_value,           // 75:44
         ex_res_from_mem,        // 43:43
@@ -106,7 +128,7 @@ module exu (
     };
     always @(posedge clk_i) begin
         if (rst_i) begin
-            adu__exu_bus <= 0;
+            adu_exu_bus <= 0;
             valid <= 0;
         end else if (adu_valid_i) begin
             valid <= 1;
@@ -117,9 +139,11 @@ module exu (
     end
     // to memfile module
     assign mem_addr_o       = ex_alu_result;
-    assign mem_wdata_o      = ex_alu_src2;
-    assign mem_we_mask_o    = mem_wmask;
-    assign mem_wen_o        = |ex_mem_we;
-    assign mem_ren_o        = |ex_mem_re;
+    assign mem_wdata_o      =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
+                                ({32{ex_mem_we == 4'b0011}} & mem_half_wdata) |
+                                ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata);
+    assign mem_wen_o        = (|ex_mem_we) && valid;
+    assign mem_ren_o        = (|ex_mem_re) && valid;
     
+    assign valid_o = valid;
 endmodule

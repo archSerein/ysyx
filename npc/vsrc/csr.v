@@ -1,62 +1,74 @@
 `include "csr.vh"
-module csr(
-    input clk_i,
-    input csr_wen_i,
-    input [`WIDTH_SIZE-1:0] csr_raddr_i,
-    input [`WIDTH_SIZE-1:0] csr_waddr_i,
-    input [`WIDTH_SIZE-1:0] csr_wdata_i,
-    output [`WIDTH_SIZE-1:0] csr_rdata_o
-);
-    // 特殊功能寄存器
-    reg [`WIDTH_SIZE-1:0] mstatus;
-    reg [`WIDTH_SIZE-1:0] mepc;
-    reg [`WIDTH_SIZE-1:0] mcause;
-    reg [`WIDTH_SIZE-1:0] mtvec;
 
-    reg [`WIDTH_SIZE-1:0] csr_rdata;
-    wire [`WIDTH_SIZE-1:0] csr_wdata = csr_wdata_i;
-    wire [`WIDTH_SIZE-1:0] csr_waddr = csr_waddr_i;
-    wire [`WIDTH_SIZE-1:0] csr_raddr = csr_raddr_i;
-    wire csr_wen = csr_wen_i;
-    // 时序逻辑
-    // 用于写寄存器
-    always @ (posedge clk_i)
-    begin
-        if(csr_wen)
-        begin
-            if (csr_waddr == `MSTATUS_ADDR)
-                mstatus <= csr_wdata;
-            else if (csr_waddr == `MEPC_ADDR)
-                mepc <= csr_wdata;
-            else if (csr_waddr == `MCAUSE_ADDR)
-                mcause <= csr_wdata;
-            else
-                mtvec <= csr_wdata;
+ module csr (
+    input                           clk_i,
+    input                           rst_i,
+    input                           csr_we_i,
+    input  [`CSR_ADDR_WIDTH-1:0]    csr_waddr_i,
+    input  [`CSR_ADDR_WIDTH-1:0]    csr_raddr_i,
+    input  [`CSR_DATA_WIDTH-1:0]    csr_wdata_i,
+    // ifu
+    output [`CSR_DATA_WIDTH-1:0]    csr_mtvec_o,
+    output [`CSR_DATA_WIDTH-1:0]    csr_mepc_o,
+
+    output [`CSR_DATA_WIDTH-1:0]    csr_rdata_o
+ );
+
+    reg     [`CSR_DATA_WIDTH-1:0]    MCAUSE;
+    reg     [`CSR_DATA_WIDTH-1:0]    MSTATUS;
+    reg     [`CSR_DATA_WIDTH-1:0]    MTVEC;
+    reg     [`CSR_DATA_WIDTH-1:0]    MEPC;
+
+    wire                    csr_mcause_we;
+    wire                    csr_mstatus_we;
+    wire                    csr_mtvec_we;
+    wire                    csr_mepc_we;
+
+    assign csr_mcause_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MCAUSE);
+    assign csr_mstatus_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MSTATUS);
+    assign csr_mtvec_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MTVEC);
+    assign csr_mepc_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MEPC);
+
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            MCAUSE <= 0;
+        end
+        else if (csr_mcause_we) begin
+            MCAUSE <= csr_wdata_i;
         end
     end
 
-    // 读寄存器
-    // wire [`WIDTH_SIZE-1:0] mux_1, mux_2, mux_3, mux_4;
-    // assign mux_1 = (csr_raddr == 32'h300) ? mstatus : mepc;
-    // assign mux_2 = (csr_raddr == 32'h342) ? mcause : mtvec;
-    // assign mux_3 = (csr_raddr == 32'h305) ? mux_2 : mux_1;
-    // assign csr_rdata = (csr_raddr == 32'h341) ? mux_3 : 32'h0;
-    // assign csr_rdata = (csr_raddr == `MSTATUS_ADDR) ? mstatus :
-    //                    (csr_raddr == `MEPC_ADDR) ? mepc :
-    //                    (csr_raddr == `MCAUSE_ADDR) ? mcause :
-    //                    (csr_raddr == `MTVEC_ADDR) ? mtvec : 32'h0;
-    // 使用 always 块描述组合逻辑
-    // 后续会使用 mux，用 assign 语句描述
-    always @ *
-    begin
-        case (csr_raddr)
-            `MSTATUS_ADDR: csr_rdata = mstatus;
-            `MEPC_ADDR: csr_rdata = mepc;
-            `MCAUSE_ADDR: csr_rdata = mcause;
-            `MTVEC_ADDR: csr_rdata = mtvec;
-            default: csr_rdata = 32'h0;
-        endcase
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            MSTATUS <= 0;
+        end
+        else if (csr_mstatus_we) begin
+            MSTATUS <= csr_wdata_i;
+        end
     end
 
-    assign csr_rdata_o = csr_rdata;
-endmodule 
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            MTVEC <= 0;
+        end
+        else if (csr_mtvec_we) begin
+            MTVEC <= csr_wdata_i;
+        end
+    end
+
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            MEPC <= 0;
+        end
+        else if (csr_mepc_we) begin
+            MEPC <= csr_wdata_i;
+        end
+    end
+
+    assign csr_rdata_o = {32{csr_raddr_i == `CSR_ADDR_MCAUSE}} & MCAUSE |
+                         {32{csr_raddr_i == `CSR_ADDR_MSTATUS}} & MSTATUS |
+                         {32{csr_raddr_i == `CSR_ADDR_MTVEC}} & MTVEC |
+                         {32{csr_raddr_i == `CSR_ADDR_MEPC}} & MEPC;
+    assign csr_mtvec_o = MTVEC;
+    assign csr_mepc_o = MEPC;
+ endmodule

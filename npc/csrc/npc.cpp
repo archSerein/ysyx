@@ -36,17 +36,17 @@ single_cycle(inst_i *cur_inst) {
 
     if (cur_inst != NULL)
     {
-        cur_inst->pc = top.rootp->top__DOT__fetch_module__DOT__pc_reg_module__DOT__current_pc;
-        cur_inst->inst = top.rootp->top__DOT__fetch_module__DOT__ifu_module__DOT__ifu_inst;
+        cur_inst->pc = top.rootp->top__DOT__ifu_module__DOT__ifu_pc;
+        cur_inst->inst = top.rootp->top__DOT__ifu_module__DOT__sram_module__DOT__sram_inst;
     }        
     top.clk_i = 0; // 切换时钟状态
     top.eval();
-    contextp->timeInc(1);
-    tfp->dump(contextp->time());
+    // contextp->timeInc(1);
+    // tfp->dump(contextp->time());
     top.clk_i = 1; // 切换
     top.eval();
-    contextp->timeInc(1);
-    tfp->dump(contextp->time());
+    // contextp->timeInc(1);
+    // tfp->dump(contextp->time());
     update_register_array();
 }
 
@@ -63,7 +63,7 @@ reset(int n) {
 void
 sim_exit(){
   single_cycle(0);
-  tfp->close();
+  // tfp->close();
 }
 
 void 
@@ -90,7 +90,7 @@ isa_reg_display()
 uint32_t
 get_reg_val(int idx)
 {
-    return top.rootp->top__DOT__regfile_module__DOT__regfile[idx];
+    return top.rootp->top__DOT__rf_module__DOT__regfile[idx];
 }
 
 static void
@@ -101,11 +101,11 @@ update_register_array()
         register_file[i] = get_reg_val(i);
     }
 
-    register_file[32] = top.rootp->top__DOT__fetch_module__DOT__pc_reg_module__DOT__current_pc;
-    register_file[33] = top.rootp->top__DOT__csr_module__DOT__mstatus;
-    register_file[34] = top.rootp->top__DOT__csr_module__DOT__mepc;
-    register_file[35] = top.rootp->top__DOT__csr_module__DOT__mcause;
-    register_file[36] = top.rootp->top__DOT__csr_module__DOT__mtvec;
+    register_file[32] = top.rootp->top__DOT__ifu_module__DOT__ifu_pc;
+    register_file[33] = top.rootp->top__DOT__csr_module__DOT__MSTATUS;
+    register_file[34] = top.rootp->top__DOT__csr_module__DOT__MEPC;
+    register_file[35] = top.rootp->top__DOT__csr_module__DOT__MCAUSE;
+    register_file[36] = top.rootp->top__DOT__csr_module__DOT__MTVEC;
 }
 
 uint32_t
@@ -121,7 +121,15 @@ isa_reg_str2val(const char *s) {
 
   if(strcmp(reg_name, "pc") == 0)
   {
-    return top.rootp->top__DOT__fetch_module__DOT__pc_reg_module__DOT__current_pc;
+    return top.rootp->top__DOT__ifu_module__DOT__ifu_pc;
   }
   return 0;
+}
+
+bool is_difftest(){
+    if (top.rootp->top__DOT__ifu_module__DOT__difftest == 1) {
+        return true;
+    } else {
+        return false;
+    }
 }

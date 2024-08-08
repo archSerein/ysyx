@@ -20,7 +20,9 @@ module alu (
         .arith_a_i(alu_a),
         .arith_b_i(alu_b),
         .arith_o(arith_result),
+        /* verilator lint_off PINCONNECTEMPTY */
         .arith_flag_o()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // 实例化一个 bool 模块

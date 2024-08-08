@@ -102,7 +102,8 @@ for (int i = 0; i < n; i++) {
     single_cycle(&cur_inst);
 
     #ifdef CONFIG_DIFFTEST
-      difftest_step(cur_inst.pc);
+      if (is_difftest())
+        difftest_step(cur_inst.pc);
     #endif // CONFIG_DIFFTEST
 
     if (g_print_step) {

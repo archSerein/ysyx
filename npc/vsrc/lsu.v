@@ -1,3 +1,4 @@
+`include "riscv_param.vh"
 module lsu (
     input                               clk_i,
     input                               rst_i,
@@ -12,7 +13,7 @@ module lsu (
 
     reg valid;
     reg [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
-    wire [31:0] ms_pc;
+    wire [31:0] ms_snpc;
     wire [31:0] ms_alu_result;
     wire [31:0] ms_csr_value;
     wire [31:0] ms_jmp_target;
@@ -28,14 +29,18 @@ module lsu (
     wire        ms_xret_flush;
     wire [ 1:0] ms_mem_addr_mask;
     wire [ 3:0] ms_mem_re;
+    wire        compare_result;
+    wire        res_from_compare;
     wire        ms_csr_we;
     
     assign {
+        res_from_compare,
+        compare_result,
+        ms_snpc,
         ms_csr_we,
         ms_mem_addr_mask,
         ms_mem_re,
-        ms_csr_addr
-        ms_pc,
+        ms_csr_addr,
         ms_alu_result,
         ms_csr_value,
         ms_res_from_mem,
@@ -44,36 +49,40 @@ module lsu (
         ms_rd,
         ms_excp_flush,
         ms_xret_flush,
-        ms_break_signal
+        ms_break_signal,
         ms_jmp_flag,
         ms_jmp_target
-    };
+    } = exu_lsu_bus;
         
 
     wire [ 7:0] ms_byteload;
     wire [15:0] ms_halfload;
     wire [31:0] ms_wordload;
-    wire [31:0] mem_result;
+    wire [31:0] ms_result;
+    wire [31:0] ms_final_result;
 
-    assign mem_byteload =   {8{ms_mem_addr_mask == 2'b00}} & mem_rdata_i[7:0] |
+    assign ms_byteload =    {8{ms_mem_addr_mask == 2'b00}} & mem_rdata_i[7:0] |
                             {8{ms_mem_addr_mask == 2'b01}} & mem_rdata_i[15:8] |
                             {8{ms_mem_addr_mask == 2'b10}} & mem_rdata_i[23:16] |
                             {8{ms_mem_addr_mask == 2'b11}} & mem_rdata_i[31:24];
 
-    assign mem_halfload =   {16{ms_mem_addr_mask == 2'b00}} & mem_rdata_i[15:0] |
+    assign ms_halfload =    {16{ms_mem_addr_mask == 2'b00}} & mem_rdata_i[15:0] |
                             {16{ms_mem_addr_mask == 2'b10}} & mem_rdata_i[31:16];
 
-    assign mem_wordload =   mem_rdata_i;
+    assign ms_wordload =   mem_rdata_i;
 
-    assign mem_result   =   {32{ms_mem_re == 4'b1111}} & mem_wordload |
-                            {32{ms_mem_re == 4'b0111}} & {{16{mem_halfload[15]}}, mem_halfload} |
-                            {32{ms_mem_re == 4'b0011}} & {{16'b0}, mem_halfload} |
-                            {32{ms_mem_re == 4'b0101}} & {{24{mem_byteload[7]}}, mem_byteload} |
-                            {32{ms_mem_re == 4'b0001}} & {{24'b0}, mem_byteload};
+    assign ms_result   =    {32{ms_mem_re == 4'b1111}} & ms_wordload |
+                            {32{ms_mem_re == 4'b0111}} & {{16{ms_halfload[15]}}, ms_halfload} |
+                            {32{ms_mem_re == 4'b0011}} & {{16'b0}, ms_halfload} |
+                            {32{ms_mem_re == 4'b0101}} & {{24{ms_byteload[7]}}, ms_byteload} |
+                            {32{ms_mem_re == 4'b0001}} & {{24'b0}, ms_byteload};
 
-    assign ms_final_result = {32{ms_res_from_mem}} & mem_result |
+    assign ms_final_result = {32{ms_res_from_mem}} & ms_result |
                              {32{ms_res_from_csr}} & ms_csr_value |
-                             {32{!ms_res_from_mem && !ms_res_from_csr}} & ms_alu_result;
+                             {32{ms_jmp_flag}} & ms_snpc |
+                             {32{res_from_compare}} & {31'b0, compare_result} |
+                             {32{!ms_res_from_mem && !ms_res_from_csr &
+                                    !res_from_compare & !ms_jmp_flag}} & ms_alu_result;
 
     always @(posedge clk_i) begin
         if (rst_i) begin
@@ -93,12 +102,12 @@ module lsu (
         ms_gr_we,
         ms_rd,
         ms_csr_addr,
-        ms_pc,
         ms_jmp_flag,
         ms_jmp_target,
         ms_break_signal,
         ms_excp_flush,
         ms_xret_flush
     };
-    /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 32 + 1 + 1 + 1 = 119*/
+    /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 1 + 1 + 1 = 87*/
+    assign valid_o = valid;
 endmodule

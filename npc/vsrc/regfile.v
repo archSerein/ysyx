@@ -24,7 +24,6 @@ module regfile (
             end
         end
         if (reg_wen_i) begin
-            $display("reg_dst: %d, reg_wdata: %h", reg_dst_i, reg_wdata_i);
             regfile[reg_dst_i] <= reg_wdata_i;
         end
 
