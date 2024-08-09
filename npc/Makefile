@@ -1,7 +1,7 @@
 TOPNAME = top
 VCD = ./V$(TOPNAME).vcd
 NXDC_FILES = constr/top.nxdc
-INC_PATH ?=
+INC_PATH ?= $(NPC_HOME)/include
 ALL ?=
 IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.bin
 ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.elf
@@ -15,11 +15,9 @@ OBJ_DIR = $(BUILD_DIR)/obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
 
 $(shell mkdir -p $(BUILD_DIR))
-# include $(NPC_HOME)/.config.make
 
-# CONFIG_FILE = $(NPC_HOME)/.config
-# config: $(CONFIG_FILE)
-# 	/home/serein/ysyx/ysyx-workbench/npc/config.sh
+-include $(NPC_HOME)/include/config/auto.conf
+-include $(NPC_HOME)/include/config/auto.conf.cmd
 
 .PHONY: waves
 waves: $(VCD)
@@ -61,7 +59,7 @@ $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 
 run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@$^ $(IMG) -b
+	@$^ $(IMG)
 	@echo "all done"
 
 gdb: $(BIN)
