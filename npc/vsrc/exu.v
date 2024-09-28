@@ -33,6 +33,7 @@ module exu (
     wire [ 3:0]           ex_mem_re;
     wire [ 3:0]           ex_mem_we;
     wire [31:0]           ex_csr_value;
+    wire [31:0]           ex_csr_wdata;
     wire [31:0]           ex_rs2_value;
     wire [31:0]           ex_snpc;
     wire                  compare_result;
@@ -58,6 +59,7 @@ module exu (
         ex_rd,
         ex_jmp_flag,
         ex_csr_addr,
+        ex_csr_wdata,
         ex_csr_value
     } = adu_exu_bus;
 
@@ -107,25 +109,27 @@ module exu (
     assign ex_jmp_target = ex_alu_result;
 
     assign exu_lsu_bus_o = {
-        res_from_compare,
-        compare_result,
-        ex_snpc,
-        ex_csr_we,              // 158:158
-        mem_addr_mask,          // 157:156
-        ex_mem_re,              // 155:152
-        ex_csr_addr,               // 151:140
-        ex_alu_result,          // 107:76
-        ex_csr_value,           // 75:44
-        ex_res_from_mem,        // 43:43
-        ex_res_from_csr,        // 42:42
-        ex_gr_we,               // 41:41
-        ex_rd,                  // 40:36
-        ex_excp_flush,          // 35:35
-        ex_xret_flush,          // 34:34
-        ex_break_signal,        // 33:33
-        ex_jmp_flag,            // 32:32
-        ex_jmp_target           // 31:0
+        ex_csr_wdata,           
+        res_from_compare,       
+        compare_result,         
+        ex_snpc,                
+        ex_csr_we,              
+        mem_addr_mask,          
+        ex_mem_re,              
+        ex_csr_addr,
+        ex_alu_result,          
+        ex_csr_value,           
+        ex_res_from_mem,        
+        ex_res_from_csr,        
+        ex_gr_we,               
+        ex_rd,                  
+        ex_excp_flush,          
+        ex_xret_flush,          
+        ex_break_signal,        
+        ex_jmp_flag,            
+        ex_jmp_target           
     };
+    /*32 + 1 + 1 + 32 + 1 + 2 + 4 + 12 + 32 + 32 + 1 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 = 193*/
     always @(posedge clk_i) begin
         if (rst_i) begin
             adu_exu_bus <= 0;

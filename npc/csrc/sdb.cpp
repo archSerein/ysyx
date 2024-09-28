@@ -10,7 +10,7 @@
 #include <readline/history.h>
 
 NPCState npc_state;
-static int is_batch_mode = false;
+static bool is_batch_mode = false;
 
 void sdb_set_batch_mode() {
   is_batch_mode = true;
@@ -190,7 +190,7 @@ init_sdb() {
   init_regex();
 
   /* Initialize the watchpoint pool. */
-  #ifdef CONFIG_WCHPOINT
+  #ifdef CONFIG_WATCHPOINT
     init_wp_pool();
-  #endif // CONFIG_WCHPOINT
+  #endif // CONFIG_WATCHPOINT
 }

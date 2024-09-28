@@ -231,10 +231,15 @@ module adu (
     assign adu_src1 =   {32{src1_is_pc}} & adu_pc |
                         {32{src1_is_zero}} & 32'h0 |
                         {32{!src1_is_pc & !src1_is_zero}} & adu_rs1_value;
-    assign adu_src2 = src2_is_imm ? adu_imm : adu_rs2_value;
+    assign adu_src2 =   {32{src2_is_imm}} & adu_imm |
+                        {32{inst_csrrs }} & adu_csr_value |
+                        {32{!src2_is_imm && !inst_csrrs}} & adu_rs2_value;
 
     wire jmp_flag;
     assign jmp_flag = inst_jal || inst_jalr || adu_br_taken;
+
+    wire [31:0] adu_csr_wdata;
+    assign adu_csr_wdata = adu_rs1_value;
 
     assign adu_exu_bus_o = {
         res_from_compare,
@@ -256,9 +261,11 @@ module adu (
         adu_rd,
         jmp_flag,
         adu_csr_addr,
+        adu_csr_wdata,
         adu_csr_value
     };
-    /* 1 + 1 + 1 + 32 + 32 + 32 + 6 + 1 + 1 + 1 + 1 + 4 + 4 + 5 + 1 + 12 + 32 = 167*/
+    /*1 + 1 + 1 + 1 + 1 + 32 + 32 + 32 + 6 + 1 + 1 + 1 + 1 + 4 + 4 + 5 + 1 + 32 + 12 + 
+        32 + 32 = 233*/
 
     assign valid_o = valid;
 endmodule

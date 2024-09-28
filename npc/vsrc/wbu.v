@@ -21,6 +21,7 @@ module wbu (
     reg [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus;
 
     wire [31:0] wbu_final_result;
+    wire [31:0] wbu_csr_wdata;
     wire        wbu_gr_we;
     wire [ 4:0] wbu_rd;
     wire [11:0] wbu_csr_addr;
@@ -37,6 +38,7 @@ module wbu (
         wbu_gr_we,
         wbu_rd,
         wbu_csr_addr,
+        wbu_csr_wdata,
         wbu_jmp_flag,
         wbu_jmp_target,
         wbu_break_signal,
@@ -49,7 +51,7 @@ module wbu (
     assign rf_wdata_o = wbu_final_result;
     assign csr_we_o = wbu_csr_we && finish;
     assign csr_addr_o = wbu_csr_addr;
-    assign csr_wdata_o = wbu_final_result;
+    assign csr_wdata_o = wbu_csr_wdata;
     assign finish_o = finish;
 
     always @(posedge clk_i) begin

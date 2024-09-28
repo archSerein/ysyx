@@ -17,6 +17,7 @@ module lsu (
     wire [31:0] ms_alu_result;
     wire [31:0] ms_csr_value;
     wire [31:0] ms_jmp_target;
+    wire [31:0] ms_csr_wdata;
     wire        ms_res_from_mem;
     wire        ms_res_from_csr;
     wire        ms_gr_we;
@@ -34,6 +35,7 @@ module lsu (
     wire        ms_csr_we;
     
     assign {
+        ms_csr_wdata,
         res_from_compare,
         compare_result,
         ms_snpc,
@@ -102,12 +104,13 @@ module lsu (
         ms_gr_we,
         ms_rd,
         ms_csr_addr,
+        ms_csr_wdata,
         ms_jmp_flag,
         ms_jmp_target,
         ms_break_signal,
         ms_excp_flush,
         ms_xret_flush
     };
-    /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 1 + 1 + 1 = 87*/
+    /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 32 + 1 + 1 + 1 = 119*/
     assign valid_o = valid;
 endmodule
