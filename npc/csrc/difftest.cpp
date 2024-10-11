@@ -11,6 +11,8 @@
 
 #ifdef CONFIG_DIFFTEST
 
+bool is_skip_ref = false;
+
 extern uint32_t register_file[33];
 
 static bool isa_difftest_checkregs(uint32_t *ref, vaddr_t pc)
@@ -84,13 +86,32 @@ static void checkregs(uint32_t *ref, vaddr_t pc) {
   }
 }
 
+void difftest_skip_ref_exec();
 void
 difftest_step(vaddr_t pc)
 {
     uint32_t ref_r[33];
+    if (is_skip_ref) {
+        difftest_skip_ref_exec();
+        return;
+    }
     ref_difftest_exec(1);
     ref_difftest_regcpy(ref_r, DIFFTEST_TO_DUT);
 
     checkregs(ref_r, pc);
+}
+
+void difftest_skip_ref() {
+    // Log("Skip the reference current instruction");
+
+    // Skip the current instruction in the reference(nemu)
+    is_skip_ref = true;
+}
+
+void difftest_skip_ref_exec() {
+    // Skip the current instruction in the reference(nemu)
+    //  need copy the reg state form dut to ref
+    ref_difftest_regcpy(register_file ,DIFFTEST_TO_REF); 
+    is_skip_ref = false;
 }
 #endif // CONFIG_DIFFTEST

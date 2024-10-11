@@ -37,16 +37,16 @@ single_cycle(inst_i *cur_inst) {
     if (cur_inst != NULL)
     {
         cur_inst->pc = top.rootp->top__DOT__ifu_module__DOT__ifu_pc;
-        cur_inst->inst = top.rootp->top__DOT__ifu_module__DOT__sram_module__DOT__sram_inst;
+        cur_inst->inst = top.rootp->top__DOT__bdu_module__DOT__bdu_inst_r;
     }        
     top.clk_i = 0; // 切换时钟状态
     top.eval();
-    // contextp->timeInc(1);
-    // tfp->dump(contextp->time());
+    contextp->timeInc(1);
+    tfp->dump(contextp->time());
     top.clk_i = 1; // 切换
     top.eval();
-    // contextp->timeInc(1);
-    // tfp->dump(contextp->time());
+    contextp->timeInc(1);
+    tfp->dump(contextp->time());
     update_register_array();
 }
 
@@ -63,7 +63,7 @@ reset(int n) {
 void
 sim_exit(){
   single_cycle(0);
-  // tfp->close();
+  tfp->close();
 }
 
 void 

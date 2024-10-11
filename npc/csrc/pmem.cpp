@@ -6,6 +6,7 @@
 #include <chrono>
 #include "defs.hpp"
 #include "debug.hpp"
+#include "difftest.hpp"
 
 uint8_t *mem;
 
@@ -64,6 +65,7 @@ extern "C" void
 pmem_write(int waddr, int wdata, char wmask)
 {
     if (waddr == 0xa00003f8) {
+        difftest_skip_ref();
         printf("%c", wdata & 0xff);
         return;
     }
