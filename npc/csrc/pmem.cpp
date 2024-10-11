@@ -111,7 +111,7 @@ inst_read(int vaddr)
     uint8_t *paddr = guest_to_host((uint32_t)vaddr);
 
     #ifdef CONFIG_MTRACE
-        // printf("inst_read: %x %x\n", vaddr, *(uint32_t *)paddr);
+        printf("inst_read: %08x %08x\n", vaddr, *(uint32_t *)paddr);
     #endif // CONFIG_MTRACE
     return *(uint32_t *)paddr;
 }

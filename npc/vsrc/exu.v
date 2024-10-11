@@ -6,11 +6,25 @@ module exu (
     input                               adu_valid_i,
     input  [`ADU_EXU_BUS_WIDTH-1:0]     adu_exu_bus_i,
     // memfile
-    output [31:0]                       mem_addr_o,
-    output [31:0]                       mem_wdata_o,
-    output [ 3:0]                       mem_we_mask_o,
-    output                              mem_wen_o,
-    output                              mem_ren_o,
+    // output [31:0]                       mem_addr_o,
+    // output [31:0]                       mem_wdata_o,
+    // output [ 3:0]                       mem_we_mask_o,
+    // output                              mem_wen_o,
+    // output                              mem_ren_o,
+    // axi read addr channel
+    input                               arready_i,
+    output [31:0]                       araddr_o,
+    output                              arvalid_o,
+    // axi write addr channel
+    input                               awready_i,
+    output [31:0]                       awaddr_o,
+    output                              awvalid_o,
+    // axi wirte data channel
+    input                               wready_i,
+    output [31:0]                       wdata_o,
+    output [ 3:0]                       wstrb_o,
+    output                              wvalid_o,
+
     output [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_o,
     output                              valid_o
 );
@@ -88,7 +102,9 @@ module exu (
                     mem_addr_mask == 2'b00,
                     mem_addr_mask == 2'b00
                 };
-    assign mem_we_mask_o =  ({4{ex_mem_we == 4'b1111}} & 4'b1111) |
+
+    wire [ 3:0] mem_we_mask;
+    assign mem_we_mask   =  ({4{ex_mem_we == 4'b1111}} & 4'b1111) |
                             ({4{ex_mem_we == 4'b0011}} & sh_we)   |
                             ({4{ex_mem_we == 4'b0001}} & sb_we);
 
@@ -116,6 +132,7 @@ module exu (
         ex_csr_we,              
         mem_addr_mask,          
         ex_mem_re,              
+        |ex_mem_we,
         ex_csr_addr,
         ex_alu_result,          
         ex_csr_value,           
@@ -130,24 +147,38 @@ module exu (
         ex_jmp_target           
     };
     /*32 + 1 + 1 + 32 + 1 + 2 + 4 + 12 + 32 + 32 + 1 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 = 193*/
+    wire    idle;
     always @(posedge clk_i) begin
         if (rst_i) begin
-            adu_exu_bus <= 0;
-            valid <= 0;
+            valid <= 1'b0;
         end else if (adu_valid_i) begin
-            valid <= 1;
+            valid <= 1'b1;
             adu_exu_bus <= adu_exu_bus_i;
-        end else begin
-            valid <= 0;
+        end else if (idle) begin
+            valid <= 1'b0;
         end
     end
     // to memfile module
-    assign mem_addr_o       = ex_alu_result;
-    assign mem_wdata_o      =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
+    // assign mem_addr_o       = ex_alu_result;
+    // assign mem_wdata_o      =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
+    //                             ({32{ex_mem_we == 4'b0011}} & mem_half_wdata) |
+    //                             ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata);
+    // assign mem_wen_o        = (|ex_mem_we) && valid;
+    // assign mem_ren_o        = (|ex_mem_re) && valid;
+    assign araddr_o         = ex_alu_result;
+    assign awaddr_o         = ex_alu_result;
+
+    assign arvalid_o        = (|ex_mem_re) && valid;
+    assign awvalid_o        = (|ex_mem_we) && valid;
+
+    assign wdata_o          =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
                                 ({32{ex_mem_we == 4'b0011}} & mem_half_wdata) |
-                                ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata);
-    assign mem_wen_o        = (|ex_mem_we) && valid;
-    assign mem_ren_o        = (|ex_mem_re) && valid;
-    
+                                ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata); 
+    assign wstrb_o          = mem_we_mask;
+    assign wvalid_o         = (|ex_mem_we) && valid;
+
+    // 没有访存请求或者握手成功时, 有效数据会直接向下传递, 同时将 valid 置为 0,
+    // 表示后续的数据并不是有效的
+    assign idle = !(arvalid_o || awvalid_o || wvalid_o) || (arvalid_o && arready_i) || (awvalid_o && awready_i) || (wvalid_o && wready_i);
     assign valid_o = valid;
 endmodule

@@ -14,15 +14,17 @@ module ifu (
     output [`IFU_BDU_BUS_WIDTH-1:0]     ifu_bdu_bus_o,
 
     output                              difftest_o,
-    output                              valid_o
+    output                              valid_o,
+
+    // axi-lite access memory interface
+    output  [31:0]                      araddr_o,
+    output                              arvalid_o,
+    input                               arready_i
 );
 
     localparam RESET_PC = 32'h80000000;
 
     reg  [31:0] ifu_pc;
-    reg         valid;
-    reg         difftest;
-    wire [31:0] ifu_inst;
     // 实例化一个加法器用来作为 pc 的自增
     wire [31:0] snpc;
     arith pc_arith (
@@ -40,6 +42,7 @@ module ifu (
     wire        excp_flush;
     wire [31:0] jmp_target;
 
+    // pre_if 阶段
     assign {excp_flush, xret_flush, jmp_flag, jmp_target} = wbu_ifu_bus_i;
     // dnpc 的选择逻辑
     wire [31:0] dnpc;
@@ -48,56 +51,57 @@ module ifu (
                     jmp_flag ? jmp_target :
                     snpc;
 
-    localparam    reset = 2'b00;
-    localparam    idle  = 2'b01;
-    localparam    fetch = 2'b10;
-    localparam    ready = 2'b11;
-    reg [1:0] state;
-    // 时序逻辑更新更新寄存器
-    always @(posedge clk_i) begin
+    // valid: 表示向下一个阶段传递的数据是否有效
+    // rreq: pc 有效但是握手没有完成需要将请求信号保持, 1->表示还有请求没有成
+    // 功发起, 0->表示所有请求都以发送成功
+    reg  valid;
+    reg  rreq;
+    reg  started;
+
+    always @ (posedge clk_i) begin
         if (rst_i) begin
-            ifu_pc <= RESET_PC;
-            state <= reset;
-            valid <= 1'b0;
-            difftest <= 1'b0;
-        end
-        else begin
-            case (state)
-                reset: begin
-                    ifu_pc <= RESET_PC;
-                    valid <= 1'b1;
-                    state <= idle;
-                end
-                idle: begin
-                    valid <= 1'b0;
-                    if (wbu_finish_i) begin
-                        ifu_pc <= dnpc;
-                        state <= fetch;
-                    end
-                end
-                fetch: begin
-                    state <= ready;
-                    valid <= 1'b1;
-                    difftest <= 1'b1;
-                end
-                ready: begin
-                    state <= idle;
-                    valid <= 1'b0;
-                    difftest <= 1'b0;
-                end
-            endcase
+            started <= 1'b0;
+        end else begin
+            started <= 1'b1;
         end
     end
 
-    wire sram_enable = ~rst_i;
-    sram sram_module (
-        .clk_i          (clk_i),
-        .sram_enable    (sram_enable),
-        .addr_i         (ifu_pc),
-        .data_o         (ifu_inst)
-    );
+    always @ (posedge clk_i) begin
+        if (rst_i) begin
+            // 复位期间不发送取指请求
+            // 传递的数据无效
+            valid <= 1'b0;
+            rreq  <= 1'b0;
+            ifu_pc <= RESET_PC;
+        end else if (arready_i && rreq) begin
+            // 握手成功, 传递的数据有效
+            valid <= 1'b1;
+            rreq  <= 1'b0;
+        end else if (!rreq && wbu_finish_i) begin
+            // 发起新的请求
+            rreq  <= 1'b1;
+            valid <= 1'b0;
+            if (started)
+                ifu_pc <= dnpc;
+        end
+    end
 
-    assign ifu_bdu_bus_o = {ifu_pc, ifu_inst, snpc};
+    reg difftest;
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            difftest <= 1'b0;
+        end else if (started && wbu_finish_i) begin
+            difftest <= 1'b1;
+        end else begin
+            difftest <= 1'b0;
+        end
+    end
     assign difftest_o = difftest;
+
+    // 握手信号
+    assign araddr_o = ifu_pc;
+    assign arvalid_o = rreq;
+
+    assign ifu_bdu_bus_o = {ifu_pc, snpc};
     assign valid_o = valid;
 endmodule

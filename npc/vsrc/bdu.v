@@ -12,9 +12,20 @@ module bdu (
     // csr register
     output [11:0]                   bdu_csr_addr_o,
     input  [31:0]                   bdu_csr_value_i,
+    // axi read data channel
+    input  [31:0]                   rdata_i,
+    input                           rvalid_i,
+    input  [ 1:0]                   rresp_i,
+    output                          rready_o,
+
     output [`BDU_ADU_BUS_WIDTH-1:0] bdu_adu_bus_o,
     output                          valid_o
 );
+
+    localparam INST_OK      = 2'b00;
+    localparam INST_EXOKAY  = 2'b01;
+    // localparam INST_SLVERR  = 2'b10;
+    // localparam INST_DECERR  = 2'b11;
 
     reg                             valid;
     reg [`IFU_BDU_BUS_WIDTH-1:0]    ifu_bdu_bus;
@@ -23,19 +34,37 @@ module bdu (
     wire [31:0] bdu_inst;
     wire [31:0] bdu_snpc;
 
-    assign {bdu_pc, bdu_inst, bdu_snpc} = ifu_bdu_bus;
+    assign {bdu_pc, bdu_snpc} = ifu_bdu_bus;
 
     always @(posedge clk_i) begin
-        if (rst_i) begin
-            valid <= 1'b0;
-            ifu_bdu_bus <= 0;
-        end else if (ifu_valid_i) begin
-            valid <= 1'b1;
+        if (ifu_valid_i) begin
             ifu_bdu_bus <= ifu_bdu_bus_i;
-        end else begin
+        end
+    end
+
+    // axi read data channel
+    reg  [31:0] bdu_inst_r;
+    reg rready;
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            rready <= 1'b1;
+            valid <= 1'b0;
+        end else if (rvalid_i && rready) begin
+            // only rresp_i == INST_OK or rresp_i == INST_EXOKAY update the
+            // bdu_inst_r and rready, otherwise the bdu_inst_r keep the old value
+            if (rresp_i == INST_OK || rresp_i == INST_EXOKAY) begin
+                bdu_inst_r <= rdata_i;
+                valid <= 1'b1;
+                // $display("bdu_inst_r: %h", bdu_inst_r);
+            end
+            rready <= 1'b0;
+        end else if (!rvalid_i) begin
+            rready <= 1'b1;
             valid <= 1'b0;
         end
     end
+    assign rready_o = rready;
+    assign bdu_inst = bdu_inst_r;
 
     wire [ 4:0] bdu_rs1;
     wire [ 4:0] bdu_rs2;

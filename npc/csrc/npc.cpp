@@ -127,7 +127,7 @@ isa_reg_str2val(const char *s) {
 }
 
 bool is_difftest(){
-    if (top.rootp->top__DOT__ifu_module__DOT__difftest == 1) {
+    if (top.difftest_o == 1) {
         return true;
     } else {
         return false;

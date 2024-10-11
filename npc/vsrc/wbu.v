@@ -56,7 +56,7 @@ module wbu (
 
     always @(posedge clk_i) begin
         if (rst_i) begin
-            finish <= 1'b0;
+            finish <= 1'b1;
             lsu_wbu_bus <= 0;
         end else if (lsu_valid_i) begin
             finish <= 1'b1;

@@ -14,6 +14,9 @@ module top (
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
 
+    wire    [31:0]  inst_araddr;
+    wire            inst_arvalid;
+    wire            inst_arready;
     ifu ifu_module (
         .clk_i          (clk_i),
         .rst_i          (rst_i),
@@ -23,6 +26,11 @@ module top (
         .csr_mtvec      (csr_mtvec),
         .csr_mepc       (csr_mepc),
         .ifu_bdu_bus_o  (ifu_bdu_bus),
+        // axi read addr channel
+        .araddr_o       (inst_araddr),
+        .arvalid_o      (inst_arvalid),
+        .arready_i      (inst_arready),
+
         .difftest_o     (difftest_o),
         .valid_o        (ifu_valid)
     );
@@ -37,6 +45,11 @@ module top (
 
     wire [`BDU_ADU_BUS_WIDTH-1:0] bdu_adu_bus;
     wire bdu_valid;
+
+    wire    [31:0]  inst_rdata;
+    wire            inst_rvalid;
+    wire            inst_rready;
+    wire    [ 1:0]  inst_rresp;
 
     bdu bdu_module (
         .clk_i          (clk_i),
@@ -53,6 +66,12 @@ module top (
         // csr register
         .bdu_csr_addr_o (csr_raddr),
         .bdu_csr_value_i(csr_value),
+
+        // axi read data channel
+        .rdata_i        (inst_rdata),
+        .rvalid_i       (inst_rvalid),
+        .rready_o       (inst_rready),
+        .rresp_i        (inst_rresp),
 
         .bdu_adu_bus_o  (bdu_adu_bus),
         .valid_o        (bdu_valid)
@@ -73,29 +92,57 @@ module top (
     wire [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
     wire exu_valid;
 
-    wire [31:0] mem_addr;
-    wire [31:0] mem_wdata;
-    wire [ 3:0] mem_we_mask;
-    wire         mem_wen;
-    wire         mem_ren;
+    // wire [31:0] mem_addr;
+    // wire [31:0] mem_wdata;
+    // wire [ 3:0] mem_we_mask;
+    // wire         mem_wen;
+    // wire         mem_ren;
+    wire [31:0] araddr;
+    wire        arvalid;
+    wire        arready;
+    wire [31:0] awaddr;
+    wire        awvalid;
+    wire        awready;
+    wire [31:0] wdata;
+    wire [ 3:0] wstrb;
+    wire        wvalid;
+    wire        wready;
     exu exu_module (
         .clk_i          (clk_i),
         .rst_i          (rst_i),
         .adu_valid_i    (adu_valid),
         .adu_exu_bus_i  (adu_exu_bus),
         // memfile
-        .mem_addr_o     (mem_addr),
-        .mem_wdata_o    (mem_wdata),
-        .mem_we_mask_o  (mem_we_mask),
-        .mem_wen_o      (mem_wen),
-        .mem_ren_o      (mem_ren),
+        // .mem_addr_o     (mem_addr),
+        // .mem_wdata_o    (mem_wdata),
+        // .mem_we_mask_o  (mem_we_mask),
+        // .mem_wen_o      (mem_wen),
+        // .mem_ren_o      (mem_ren),
+        .arready_i      (arready),
+        .araddr_o       (araddr),
+        .arvalid_o      (arvalid),
+        .awready_i      (awready),
+        .awaddr_o       (awaddr),
+        .awvalid_o      (awvalid),
+        .wready_i       (wready),
+        .wdata_o        (wdata),
+        .wstrb_o        (wstrb),
+        .wvalid_o       (wvalid),
+
         .exu_lsu_bus_o  (exu_lsu_bus),
         .valid_o        (exu_valid)
     );
 
-    wire [31:0] mem_rdata;
+    // wire [31:0] mem_rdata;
     wire [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus;
     wire lsu_valid;
+    wire [31:0] rdata;
+    wire [ 1:0] rresp;
+    wire        rvalid;
+    wire        rready;
+    wire [ 1:0] bresp;
+    wire        bvalid;
+    wire        bready;
 
     lsu lsu_module (
         .clk_i          (clk_i),
@@ -103,7 +150,15 @@ module top (
         .exu_valid_i    (exu_valid),
         .exu_lsu_bus_i  (exu_lsu_bus),
         // memfile
-        .mem_rdata_i    (mem_rdata),
+        // .mem_rdata_i    (mem_rdata),
+        .rdata_i        (rdata),
+        .rresp_i        (rresp),
+        .rvalid_i       (rvalid),
+        .rready_o       (rready),
+
+        .bresp_i        (bresp),
+        .bvalid_i       (bvalid),
+        .bready_o       (bready),
 
         .lsu_wbu_bus_o  (lsu_wbu_bus),
         .valid_o        (lsu_valid)
@@ -162,15 +217,43 @@ module top (
         .csr_rdata_o    (csr_value)
     );
 
-    // memfile
-    memfile mem_module (
+    inst_axi_lite inst_axi_lite_module (
         .clk_i          (clk_i),
         .rst_i          (rst_i),
-        .mem_addr_i     (mem_addr),
-        .mem_wdata_i    (mem_wdata),
-        .mem_we_mask_i  (mem_we_mask),
-        .mem_wen_i      (mem_wen),
-        .mem_ren_i      (mem_ren),
-        .mem_rdata_o    (mem_rdata)
+        .araddr_i       (inst_araddr),
+        .arvalid_i      (inst_arvalid),
+        .arready_o      (inst_arready),
+
+        .rdata_o        (inst_rdata),
+        .rvalid_o       (inst_rvalid),
+        .rready_i       (inst_rready),
+        .rresp_o        (inst_rresp)
+    );
+
+    // TODO
+    data_axi_lite data_axi_lite_module (
+        .clk_i          (clk_i),
+        .rst_i          (rst_i),
+        .araddr_i       (araddr),
+        .arvalid_i      (arvalid),
+        .arready_o      (arready),
+
+        .rdata_o        (rdata),
+        .rvalid_o       (rvalid),
+        .rready_i       (rready),
+        .rresp_o        (rresp),
+
+        .awaddr_i       (awaddr),
+        .awvalid_i      (awvalid),
+        .awready_o      (awready),
+
+        .wdata_i        (wdata),
+        .wstrb_i        (wstrb),
+        .wvalid_i       (wvalid),
+        .wready_o       (wready),
+
+        .bvalid_o       (bvalid),
+        .bresp_o        (bresp),
+        .bready_i       (bready)
     );
 endmodule
