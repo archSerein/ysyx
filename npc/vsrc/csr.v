@@ -24,10 +24,10 @@
     wire                    csr_mtvec_we;
     wire                    csr_mepc_we;
 
-    assign csr_mcause_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MCAUSE);
-    assign csr_mstatus_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MSTATUS);
-    assign csr_mtvec_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MTVEC);
-    assign csr_mepc_we = csr_we_i & (csr_waddr_i == `CSR_ADDR_MEPC);
+    assign csr_mcause_we = csr_we_i && (csr_waddr_i == `CSR_ADDR_MCAUSE);
+    assign csr_mstatus_we = csr_we_i && (csr_waddr_i == `CSR_ADDR_MSTATUS);
+    assign csr_mtvec_we = csr_we_i && (csr_waddr_i == `CSR_ADDR_MTVEC);
+    assign csr_mepc_we = csr_we_i && (csr_waddr_i == `CSR_ADDR_MEPC);
 
     always @(posedge clk_i) begin
         if (rst_i) begin

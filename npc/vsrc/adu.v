@@ -239,7 +239,8 @@ module adu (
     assign jmp_flag = inst_jal || inst_jalr || adu_br_taken;
 
     wire [31:0] adu_csr_wdata;
-    assign adu_csr_wdata = adu_rs1_value;
+    assign adu_csr_wdata =  {32{inst_csrrw}} & adu_rs1_value |
+                            {32{inst_csrrs}} & (adu_csr_value | adu_rs1_value);
 
     assign adu_exu_bus_o = {
         res_from_compare,
