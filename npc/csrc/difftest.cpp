@@ -13,22 +13,16 @@
 
 bool is_skip_ref = false;
 
-extern uint32_t register_file[33];
+extern uint32_t register_file[37];
 
 static bool isa_difftest_checkregs(uint32_t *ref, vaddr_t pc)
 {
     int i;
-    for (i = 0; i < 32; i++) {
+    for (i = 0; i < 37; i++) {
         if (register_file[i] != ref[i]) {
             goto bad;
         }
     }
-
-    if(ref[32] != register_file[32])
-    {
-        goto bad;
-    }
-
     return true;
 
 bad: 
@@ -90,7 +84,7 @@ void difftest_skip_ref_exec();
 void
 difftest_step(vaddr_t pc)
 {
-    uint32_t ref_r[33];
+    uint32_t ref_r[37];
     if (is_skip_ref) {
         difftest_skip_ref_exec();
         return;

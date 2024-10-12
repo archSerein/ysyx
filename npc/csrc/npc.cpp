@@ -8,8 +8,10 @@
 #include "debug.hpp"
 
 static TOP_NAME top;
-VerilatedContext* contextp = NULL;
-VerilatedVcdC* tfp = NULL;
+#ifdef CONFIG_TRACE_WAVE
+    VerilatedContext* contextp = NULL;
+    VerilatedVcdC* tfp = NULL;
+#endif // CONFIG_TRACE_WAVE
 
 uint32_t register_file[37];
 int e = 0;
@@ -41,12 +43,16 @@ single_cycle(inst_i *cur_inst) {
     }        
     top.clk_i = 0; // 切换时钟状态
     top.eval();
-    contextp->timeInc(1);
-    tfp->dump(contextp->time());
+    #ifdef CONFIG_TRACE_WAVE
+        contextp->timeInc(1);
+        tfp->dump(contextp->time());
+    #endif // CONFIG_TRACE_WAVE
     top.clk_i = 1; // 切换
     top.eval();
-    contextp->timeInc(1);
-    tfp->dump(contextp->time());
+    #ifdef CONFIG_TRACE_WAVE
+        contextp->timeInc(1);
+        tfp->dump(contextp->time());
+    #endif // CONFIG_TRACE_WAVE
     update_register_array();
 }
 
@@ -62,10 +68,13 @@ reset(int n) {
 
 void
 sim_exit(){
-  single_cycle(0);
-  tfp->close();
+    single_cycle(0);
+    #ifdef CONFIG_TRACE_WAVE
+        tfp->close();
+    #endif // CONFIG_TRACE_WAVE
 }
 
+#ifdef CONFIG_TRACE_WAVE
 void 
 sim_init()
 {
@@ -76,6 +85,7 @@ sim_init()
     top.trace(tfp, 0);
     tfp->open("Vtop.vcd");
 }
+#endif // CONFIG_TRACE_WAVE
 
 void
 isa_reg_display()
@@ -102,10 +112,10 @@ update_register_array()
     }
 
     register_file[32] = top.rootp->top__DOT__ifu_module__DOT__ifu_pc;
-    register_file[33] = top.rootp->top__DOT__csr_module__DOT__MSTATUS;
-    register_file[34] = top.rootp->top__DOT__csr_module__DOT__MEPC;
-    register_file[35] = top.rootp->top__DOT__csr_module__DOT__MCAUSE;
-    register_file[36] = top.rootp->top__DOT__csr_module__DOT__MTVEC;
+    register_file[33] = top.rootp->top__DOT__csr_module__DOT__MEPC;
+    register_file[34] = top.rootp->top__DOT__csr_module__DOT__MSTATUS;
+    register_file[35] = top.rootp->top__DOT__csr_module__DOT__MTVEC;
+    register_file[36] = top.rootp->top__DOT__csr_module__DOT__MCAUSE;
 }
 
 uint32_t
@@ -126,6 +136,7 @@ isa_reg_str2val(const char *s) {
   return 0;
 }
 
+#ifdef CONFIG_DIFFTEST
 bool is_difftest(){
     if (top.difftest_o == 1) {
         return true;
@@ -133,3 +144,4 @@ bool is_difftest(){
         return false;
     }
 }
+#endif

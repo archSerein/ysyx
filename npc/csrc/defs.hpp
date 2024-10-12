@@ -28,7 +28,9 @@ void        isa_reg_display();
 void        info_w();
 void        free();
 void        sim_exit();
-void        sim_init();
+#ifdef CONFIG_TRACE_WAVE
+    void        sim_init();
+#endif // CONFIG_TRACE_WAVE
 void        reset(int n);
 void        exec(uint64_t n);
 int         is_exit_status_bad();

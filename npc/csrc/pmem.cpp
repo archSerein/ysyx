@@ -65,7 +65,9 @@ extern "C" void
 pmem_write(int waddr, int wdata, char wmask)
 {
     if (waddr == 0xa00003f8) {
-        difftest_skip_ref();
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif // CONFIG_DIFFTEST
         printf("%c", wdata & 0xff);
         return;
     }

@@ -46,8 +46,13 @@ CSRCS += $(SRC_AUTO_BIND)
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
-CXXFLAGS += $(shell llvm-config --cxxflags) # -DCONFIG_DIFFTEST
-LDFLAGS += -lreadline $(shell llvm-config --libs) # -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
+CXXFLAGS += $(shell llvm-config --cxxflags)
+LDFLAGS += -lreadline $(shell llvm-config --libs)
+
+-include $(NPC_HOME)/.config
+ifeq ($(CONFIG_DIFFTEST), y)
+	LDFLAGS += -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
+endif
 
 $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 		@rm -rf $(OBJ_DIR)

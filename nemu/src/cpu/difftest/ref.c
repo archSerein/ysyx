@@ -42,9 +42,11 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
   if (direction == DIFFTEST_TO_DUT) {
     memcpy(dut, cpu.gpr, sizeof(cpu.gpr));
     memcpy(dut + sizeof(cpu.gpr), &cpu.pc, sizeof(cpu.pc));
+    memcpy(dut + sizeof(cpu.gpr) + sizeof(cpu.pc), cpu.csr, sizeof(cpu.csr));
   } else {
     memcpy(cpu.gpr, dut, sizeof(cpu.gpr));
     memcpy(&cpu.pc, dut + sizeof(cpu.gpr), sizeof(cpu.pc));
+    memcpy(cpu.csr, dut+sizeof(cpu.gpr)+sizeof(cpu.pc), sizeof(cpu.csr));
   }
 }
 

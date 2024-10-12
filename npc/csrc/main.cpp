@@ -24,7 +24,9 @@ static int parse_args(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[], char *env[]) {
-    sim_init();
+    #ifdef CONFIG_TRACE_WAVE
+        sim_init();
+    #endif // CONFIG_TRACE_WAVE
     #ifdef CONFIG_FTRACE
       if(argc < 3)
     #else
