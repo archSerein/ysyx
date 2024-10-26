@@ -217,43 +217,39 @@ module top (
         .csr_rdata_o    (csr_value)
     );
 
-    inst_axi_lite inst_axi_lite_module (
+    axi_lite_arbitrator inst_axi_lite_arbitrator_module (
         .clk_i          (clk_i),
         .rst_i          (rst_i),
-        .araddr_i       (inst_araddr),
-        .arvalid_i      (inst_arvalid),
-        .arready_o      (inst_arready),
 
-        .rdata_o        (inst_rdata),
-        .rvalid_o       (inst_rvalid),
-        .rready_i       (inst_rready),
-        .rresp_o        (inst_rresp)
-    );
+        .ifu_araddr_i   (inst_araddr),
+        .ifu_arvalid_i  (inst_arvalid),
+        .ifu_arready_o  (inst_arready),
 
-    // TODO
-    data_axi_lite data_axi_lite_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
-        .araddr_i       (araddr),
-        .arvalid_i      (arvalid),
-        .arready_o      (arready),
+        .bdu_rdata_o    (inst_rdata),
+        .bdu_rvalid_o   (inst_rvalid),
+        .bdu_rready_i   (inst_rready),
+        .bdu_rresp_o    (inst_rresp),
 
-        .rdata_o        (rdata),
-        .rvalid_o       (rvalid),
-        .rready_i       (rready),
-        .rresp_o        (rresp),
+        .exu_araddr_i   (araddr),
+        .exu_arvalid_i  (arvalid),
+        .exu_arready_o  (arready),
 
-        .awaddr_i       (awaddr),
-        .awvalid_i      (awvalid),
-        .awready_o      (awready),
+        .lsu_rdata_o    (rdata),
+        .lsu_rvalid_o   (rvalid),
+        .lsu_rready_i   (rready),
+        .lsu_rresp_o    (rresp),
 
-        .wdata_i        (wdata),
-        .wstrb_i        (wstrb),
-        .wvalid_i       (wvalid),
-        .wready_o       (wready),
+        .exu_awaddr_i   (awaddr),
+        .exu_awvalid_i  (awvalid),
+        .exu_awready_o  (awready),
 
-        .bvalid_o       (bvalid),
-        .bresp_o        (bresp),
-        .bready_i       (bready)
+        .exu_wdata_i    (wdata),
+        .exu_wstrb_i    (wstrb),
+        .exu_wvalid_i   (wvalid),
+        .exu_wready_o   (wready),
+
+        .lsu_bvalid_o   (bvalid),
+        .lsu_bresp_o    (bresp),
+        .lsu_bready_i   (bready)
     );
 endmodule
