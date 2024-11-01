@@ -95,11 +95,11 @@ difftest_step(vaddr_t pc)
     checkregs(ref_r, pc);
 }
 
-void difftest_skip_ref() {
+extern "C" void difftest_skip_ref(int is_skip) {
     // Log("Skip the reference current instruction");
 
     // Skip the current instruction in the reference(nemu)
-    is_skip_ref = true;
+    is_skip_ref = is_skip == 1;
 }
 
 void difftest_skip_ref_exec() {

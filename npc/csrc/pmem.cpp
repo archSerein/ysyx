@@ -64,11 +64,15 @@ pmem_read(int raddr)
 extern "C" void
 pmem_write(int waddr, int wdata, char wmask)
 {
+    // if (waddr == 0xa00003f8) {
+    //     #ifdef CONFIG_DIFFTEST
+    //         difftest_skip_ref();
+    //     #endif // CONFIG_DIFFTEST
+    //     printf("%c", wdata & 0xff);
+    //     return;
+    // }
     if (waddr == 0xa00003f8) {
-        #ifdef CONFIG_DIFFTEST
-            difftest_skip_ref();
-        #endif // CONFIG_DIFFTEST
-        printf("%c", wdata & 0xff);
+        printf("axi lite arbitrator fault\n");
         return;
     }
     uint32_t vaddr = (uint32_t)(waddr & ~0x3u);

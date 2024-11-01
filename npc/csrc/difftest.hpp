@@ -15,7 +15,9 @@ enum { DIFFTEST_TO_DUT, DIFFTEST_TO_REF };
 
 #define ANSI_FMT(str, fmt) fmt str ANSI_NONE
 
-void    difftest_skip_ref(void);
+#ifdef CONFIG_DIFFTEST
+    extern "C" void    difftest_skip_ref(int);
+#endif // CONFIG_DIFFTEST
 
 extern bool is_skip_ref;
 #endif // __DIFFTEST_HPP__

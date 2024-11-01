@@ -47,4 +47,6 @@ void    difftest_step(vaddr_t pc);
 
 // npc.cpp
 bool        is_difftest();
+
+extern "C" void putch(int ch);
 #endif

@@ -79,6 +79,48 @@ module axi_lite_arbitrator (
         .bready_i       (bready)
     );
 
+    wire        uart_awvalid;
+    wire        uart_wvalid;
+    wire        uart_bvalid;
+    wire        uart_awready;
+    wire        uart_wready;
+    wire [ 1:0] uart_bresp;
+    uart uart_module (
+        .clk_i          (clk_i),
+        .rst_i          (rst_i),
+
+        .awvalid_i      (uart_awvalid),
+        .awaddr_i       (awaddr),
+        .awready_o      (uart_awready),
+
+        .wvalid_i       (uart_wvalid),
+        .wdata_i        (wdata),
+        .wstrb_i        (wstrb),
+        .wready_o       (uart_wready),
+
+        .bvalid_o       (uart_bvalid),
+        .bresp_o        (uart_bresp),
+        .bready_i       (bready)
+    );
+
+    wire            clint_arvalid;
+    wire            clint_arready;
+    wire            clint_rvalid;
+    wire    [31:0]  clint_rdata;
+    clint   clint_module(
+        .clk_i          (clk_i),
+        .rst_i          (rst_i),
+
+        .arvalid_i      (clint_arvalid),
+        .araddr_i       (araddr),
+        .arready_o      (clint_arready),
+
+        .rready_i       (rready),
+        .rvalid_o       (clint_rvalid),
+        .rdata_o        (clint_rdata)
+    );
+    assign clint_arvalid    = arvalid && araddr[31:28] == 4'b1010;
+
     reg            arvalid_r;
     reg    [31:0]  araddr_r;
 
@@ -89,12 +131,14 @@ module axi_lite_arbitrator (
 
     assign arvalid = arvalid_r;
     assign araddr = araddr_r;
-    assign awvalid = awvalid_r;
-    assign wvalid = awvalid_r;
+    assign awvalid = awvalid_r && (awaddr_r[31:28] != 4'ha);
+    assign wvalid = awvalid_r && (awaddr_r[31:28] != 4'ha);
     assign awaddr = awaddr_r;
     assign wstrb = wstrb_r;
     assign wdata = wdata_r;
 
+    assign uart_awvalid = awvalid_r && (awaddr_r[31:28] == 4'ha);
+    assign uart_wvalid = awvalid_r && (awaddr_r[31:28] == 4'ha);
     // state machine
     localparam      IDLE    = 2'b00;
     localparam      HANDLE  = 2'b01;
@@ -121,13 +165,16 @@ module axi_lite_arbitrator (
                     end
                 end
                 HANDLE: begin
-                    if (awready && wready) begin
+                    if ((awready && wready) || (uart_awready && uart_wready)) begin
                         awvalid_r <= 1'b0;
                         wstate <= WAIT;
                     end
                 end
                 WAIT: begin
-                    if (bvalid) begin
+                    // 目前仲裁器一次只能接受一个请求
+                    // 所以只要有写响应就可以进入 IDLE 状态
+                    // 结束当前请求
+                    if (bvalid || uart_bvalid) begin
                         wstate <= RESP;
                     end
                 end
@@ -142,9 +189,10 @@ module axi_lite_arbitrator (
     assign exu_awready_o = wstate == IDLE;
     assign exu_wready_o = wstate == IDLE;
     assign lsu_bvalid_o = wstate == RESP;
-    assign lsu_bresp_o = bresp;
+    assign lsu_bresp_o = {2{bvalid}} & bresp | {2{uart_bvalid}} & uart_bresp;
 
-    reg     req_source;
+    reg         req_source;
+    reg [31:0]  rdata_r;
     always @(posedge clk_i) begin
         if (rst_i) begin
             rstate <= IDLE;
@@ -169,7 +217,11 @@ module axi_lite_arbitrator (
                 HANDLE: begin
                     // 如果 axi lite is ready
                     // 就进入 WAIT 状态
-                    if (arready) begin
+                    if (arready && araddr_r[31:28] != 4'ha) begin
+                        arvalid_r <= 1'b0;
+                        rstate <= WAIT;
+                    end
+                    if (clint_arready && araddr_r[31:28] == 4'ha) begin
                         arvalid_r <= 1'b0;
                         rstate <= WAIT;
                     end
@@ -177,8 +229,10 @@ module axi_lite_arbitrator (
                 WAIT: begin
                     // 如果 axi lite 返回了有效的数据
                     // 就进入 RESP 状态
-                    if (rvalid) begin
-                        rstate <= RESP;
+                    if (rvalid || clint_rvalid) begin
+                        rstate  <= RESP;
+                        rdata_r <= {32{rvalid}} & rdata |
+                                    {32{clint_rvalid}} & clint_rdata;
                     end
                 end
                 RESP: begin
@@ -196,8 +250,8 @@ module axi_lite_arbitrator (
     assign lsu_rvalid_o = rstate == RESP && req_source == 1;
     assign ifu_arready_o = rstate == IDLE;
     assign exu_arready_o = rstate == IDLE;
-    assign lsu_rdata_o = rdata;
-    assign bdu_rdata_o = rdata;
+    assign lsu_rdata_o = rdata_r;
+    assign bdu_rdata_o = rdata_r;
     assign lsu_rresp_o = rresp;
     assign bdu_rresp_o = rresp;
 endmodule

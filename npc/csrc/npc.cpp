@@ -6,6 +6,7 @@
 #include "defs.hpp"
 #include "reg.hpp"
 #include "debug.hpp"
+#include <cstdio>
 
 static TOP_NAME top;
 #ifdef CONFIG_TRACE_WAVE
@@ -17,6 +18,7 @@ uint32_t register_file[37];
 int e = 0;
 
 extern "C" void ending(int num) { e = num; }
+extern "C" void putch(int ch) { putchar(ch); }
 static void update_register_array();
 
 void

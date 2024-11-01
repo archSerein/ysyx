@@ -55,6 +55,7 @@ ifeq ($(CONFIG_DIFFTEST), y)
 endif
 
 $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
+		@python3 $(NPC_HOME)/trans.py
 		@rm -rf $(OBJ_DIR)
 		$(VERILATOR) $(VERILATOR_CFLAGS) \
 		+incdir+/home/serein/ysyx/ysyx-workbench/npc/vsrc \
