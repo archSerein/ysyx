@@ -1,14 +1,15 @@
-TOPNAME = top
+TOPNAME = ysyxSoCFull
 VCD = ./V$(TOPNAME).vcd
 NXDC_FILES = constr/top.nxdc
-INC_PATH ?= $(NPC_HOME)/include
+INC_PATH ?= $(NPC_HOME)/include $(SOC_HOME)/perip/uart16550/rtl $(SOC_HOME)/perip/spi/rtl
 ALL ?=
 IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.bin
 ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.elf
 
 VERILATOR = verilator
-VERILATOR_CFLAGS += -MMD -Wall --trace --Wno-DECLFILENAME \
-				-O3 --x-assign unique --x-initial fast --noassert --build -cc
+VERILATOR_CFLAGS += -MMD --trace --Wno-DECLFILENAME \
+				-O3 --x-assign unique --x-initial fast --noassert --build -cc \
+				--timescale "1ns/1ns" --no-timing
 
 BUILD_DIR = ./build
 OBJ_DIR = $(BUILD_DIR)/obj_dir
@@ -36,7 +37,8 @@ $(VCD): $(BUILD_DIR)/$(TOPNAME)
 #	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 # project source
-VSRCS = $(shell find $(abspath ./vsrc) -name "*.v")
+VSRCS =	$(shell find $(abspath ./vsrc) -name "*.v")
+VSRCS += $(shell find $(abspath ../ysyxSoC/perip) -name "*.v")
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
 

@@ -10,4 +10,6 @@ extern "C" int pmem_read(int);
 uint32_t vaddr_read(uint32_t, int);
 
 uint8_t *guest_to_host(uint32_t paddr);
+extern "C" void flash_read(int32_t addr, int32_t *data) { assert(0); }
+extern "C" void mrom_read(int32_t addr, int32_t *data) { assert(0); }
 #endif // __PMEM_HPP__

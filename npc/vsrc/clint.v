@@ -1,0 +1,44 @@
+module clint (
+    input                   clk_i,
+    input                   rst_i,
+
+    input                   arvalid_i,
+    output                  arready_o,
+    input  [31:0]           araddr_i,
+
+    output                  rvalid_o,
+    input                   rready_i,
+    output  [31:0]          rdata_o
+);
+
+    // high: 0xa000004c
+    // low:  0xa0000048
+    reg     [63:0]          mtime;
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            mtime <= 0;
+        end else begin
+            mtime <= mtime + 1;
+        end
+    end
+
+    localparam  ready = 1'b1;
+    reg        valid;
+    reg        [31:0]       rdata;
+    always @(posedge clk_i) begin
+        if (arvalid_i) begin
+            valid <= 1'b1;
+            if (araddr_i == 32'ha0000048) begin
+                rdata <= mtime[31:0];
+            end else if (araddr_i == 32'ha000004c) begin
+                rdata <= mtime[63:32];
+            end
+        end else begin
+            valid <= 1'b0;
+        end
+    end
+
+    assign rdata_o     = rdata;
+    assign arready_o   = ready;
+    assign rvalid_o    = valid;
+endmodule;
