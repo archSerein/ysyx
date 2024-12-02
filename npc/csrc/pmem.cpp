@@ -8,14 +8,23 @@
 #include "debug.hpp"
 #include "difftest.hpp"
 
-uint8_t *mem;
+#define MASK(addr) ((addr) & (~0x03u))
 
-uint8_t* guest_to_host(uint32_t paddr) { return mem + paddr - CONFIG_MBASE; }
+uint8_t *sram;
+uint8_t *mrom;
+uint8_t *flash;
+
+uint8_t* guest_to_host(uint32_t paddr) { return sram + paddr - CONFIG_MBASE; }
+uint8_t* mrom_to_host(uint32_t paddr) { return mrom + paddr - CONFIG_MROM_BASE; }
+uint8_t* sram_to_host(uint32_t paddr) { return sram + paddr - CONFIG_SRAM_BASE; }
+uint8_t* flash_to_host(uint32_t paddr) { return flash + paddr; }
 
 long
 init_mem(char *path)
 {
-    mem = (uint8_t *)aligned_alloc(32, CONFIG_MEM_SIZE * sizeof(uint32_t));
+    mrom = (uint8_t *)aligned_alloc(32, CONFIG_MROM_SIZE);
+    sram = (uint8_t *)aligned_alloc(32, CONFIG_SRAM_SIZE);
+    flash = (uint8_t *)aligned_alloc(32, CONFIG_FLASH_SIZE);
     if(path == NULL)
     {
         printf("No image is given, exit now\n");
@@ -33,12 +42,13 @@ init_mem(char *path)
     long size = ftell(fp);
 
     fseek(fp, 0, SEEK_SET);
-    int ret = fread(mem, size, 1, fp);
+    int ret = fread(mrom, size, 1, fp);
     assert(ret == 1);
+    Log("load image size: 0x%08lx", size);
 
     fclose(fp);
 
-    printf("mem initalization complete\n");
+    Log("mem initalization complete");
     return size;
 }
 
@@ -142,7 +152,45 @@ vaddr_read(uint32_t addr, int len)
 }
 
 void
-free()
-{
-    free(mem);
+free() {
+    free(mrom);
+    free(sram);
+    free(flash);
+}
+
+void flash_test() {
+    Log("init flash starting:...");
+    for (uint32_t i = 0; i < CONFIG_FLASH_SIZE; i += 4) {
+        *(uint32_t *)(flash + i) = i;
+    }
+    Log("init flash finish");
+}
+extern "C" void flash_read(int32_t addr, int32_t *data) {
+    if ((uint32_t)addr >= CONFIG_FLASH_SIZE) {
+        Log("flash_read: 0x%08x out of range", addr);
+        *data = -1;
+        return;
+    }
+
+    uint8_t *paddr;
+    paddr = flash_to_host((uint32_t)MASK(addr));
+    #ifdef CONFIG_MTRACE
+        Log("flash_read: %08x %08x", addr, *(int32_t *)paddr);
+    #endif // CONFIG_MTRACE
+    *data = *(int32_t *)paddr;
+}
+extern "C" void mrom_read(int32_t addr, int32_t *data) {
+    if ((uint32_t)addr >= CONFIG_MROM_BASE + CONFIG_MROM_SIZE ||
+        (uint32_t)addr < CONFIG_MROM_BASE) {
+        Log("mrom_read: 0x%08x out of range", addr);
+        *data = -1;
+        return;
+    }
+
+    uint8_t *paddr;
+    paddr = mrom_to_host((uint32_t)MASK(addr));
+    #ifdef CONFIG_MTRACE
+        // Log("mrom_read: %08x %08x", addr, *(int32_t *)paddr);
+    #endif // CONFIG_MTRACE
+    *data = *(int32_t *)paddr;
 }

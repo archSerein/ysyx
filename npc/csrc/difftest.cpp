@@ -68,7 +68,7 @@ init_difftest(const char *ref_so_file, long img_size, int port)
       "If it is not necessary, you can turn it off in menuconfig.", ref_so_file);
 
     ref_difftest_init(port);
-    ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
+    ref_difftest_memcpy(RESET_VECTOR, mrom_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
     ref_difftest_regcpy(register_file, DIFFTEST_TO_REF);
 }
 
@@ -86,7 +86,7 @@ difftest_step(vaddr_t pc)
 {
     uint32_t ref_r[37];
     if (is_skip_ref) {
-        difftest_skip_ref_exec();
+        ref_difftest_regcpy(register_file ,DIFFTEST_TO_REF); 
         return;
     }
     ref_difftest_exec(1);
@@ -99,13 +99,7 @@ extern "C" void difftest_skip_ref(int is_skip) {
     // Log("Skip the reference current instruction");
 
     // Skip the current instruction in the reference(nemu)
-    is_skip_ref = is_skip == 1;
+    is_skip_ref = (is_skip == 1);
 }
 
-void difftest_skip_ref_exec() {
-    // Skip the current instruction in the reference(nemu)
-    //  need copy the reg state form dut to ref
-    ref_difftest_regcpy(register_file ,DIFFTEST_TO_REF); 
-    is_skip_ref = false;
-}
 #endif // CONFIG_DIFFTEST

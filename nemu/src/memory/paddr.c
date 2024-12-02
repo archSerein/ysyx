@@ -19,13 +19,35 @@
 #include <isa.h>
 
 #if   defined(CONFIG_PMEM_MALLOC)
-static uint8_t *pmem = NULL;
+  static uint8_t *pmem = NULL;
+  #ifdef CONFIG_YSYXSOC
+    uint8_t *sram = NULL;
+    static uint32_t sram_size = 0x2000;
+    static uint32_t memsize = 0x1000;
+  #else
+    static uint32_t memsize = CONFIG_MSIZE;
+  #endif
 #else // CONFIG_PMEM_GARRAY
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
 
-uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
-paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
+
+
+#ifdef CONFIG_YSYXSOC
+  uint8_t* guest_to_host(paddr_t paddr) {
+    if (paddr >= PMEM_LEFT && paddr <= PMEM_RIGHT) return pmem + paddr - PMEM_LEFT;
+    if (paddr >= 0x0f000000 && paddr <= 0x0f001fff) return sram + paddr - 0x0f000000;
+    return NULL;
+  }
+  paddr_t host_to_guest(uint8_t *haddr) {
+    if (haddr >= pmem && haddr < pmem + memsize) return haddr - pmem + PMEM_LEFT;
+    if (haddr >= sram && haddr < sram + sram_size) return haddr - sram + 0x0f000000;
+    return 0;
+  }
+#else
+  uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
+  paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
+#endif
 
 static word_t pmem_read(paddr_t addr, int len) {
   word_t ret = host_read(guest_to_host(addr), len);
@@ -46,10 +68,15 @@ static void out_of_bound(paddr_t addr) {
 
 void init_mem() {
 #if   defined(CONFIG_PMEM_MALLOC)
-  pmem = malloc(CONFIG_MSIZE);
+  pmem = malloc(memsize);
   assert(pmem);
 #endif
-  IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), CONFIG_MSIZE));
+#ifdef CONFIG_YSYXSOC
+  sram = malloc(sram_size);
+  assert(sram);
+  IFDEF(CONFIG_MEM_RANDOM, memset(sram, rand(), sram_size));
+#endif
+  IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), memsize));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
 

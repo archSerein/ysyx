@@ -1,3 +1,4 @@
+`include "./include/generated/autoconf.vh"
 `include "riscv_param.vh"
 `include "csr.vh"
 
@@ -13,7 +14,6 @@ module ifu (
 
     output [`IFU_BDU_BUS_WIDTH-1:0]     ifu_bdu_bus_o,
 
-    output                              difftest_o,
     output                              valid_o,
 
     // axi-lite access memory interface
@@ -22,7 +22,7 @@ module ifu (
     input                               arready_i
 );
 
-    localparam RESET_PC = 32'h80000000;
+    localparam RESET_PC = 32'h20000000;
 
     reg  [31:0] ifu_pc;
     // 实例化一个加法器用来作为 pc 的自增
@@ -86,17 +86,20 @@ module ifu (
         end
     end
 
-    reg difftest;
-    always @(posedge clk_i) begin
-        if (rst_i) begin
-            difftest <= 1'b0;
-        end else if (started && wbu_finish_i) begin
-            difftest <= 1'b1;
-        end else begin
-            difftest <= 1'b0;
+    `ifdef CONFIG_DIFFTEST
+        import "DPI-C" function void is_difftest(input byte difftest);
+        reg [ 7:0] difftest;
+        always @(posedge clk_i) begin
+            if (rst_i) begin
+                difftest <= 8'b0;
+            end else if (started && wbu_finish_i) begin
+                difftest <= 8'b1;
+            end else begin
+                difftest <= 8'b0;
+            end
+            is_difftest(difftest);
         end
-    end
-    assign difftest_o = difftest;
+    `endif
 
     // 握手信号
     assign araddr_o = ifu_pc;
@@ -104,4 +107,5 @@ module ifu (
 
     assign ifu_bdu_bus_o = {ifu_pc, snpc};
     assign valid_o = valid;
+
 endmodule

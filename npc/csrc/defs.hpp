@@ -22,7 +22,6 @@ typedef uint32_t vaddr_t;
 
 int         is_exit_state(int state);
 void        single_cycle(inst_i *);
-uint32_t    get_reg_val(int n);
 uint32_t    isa_reg_str2val(const char *s);
 void        isa_reg_display();
 void        info_w();
@@ -46,7 +45,13 @@ void    init_difftest(const char *ref_so_file, long img_size, int port);
 void    difftest_step(vaddr_t pc);
 
 // npc.cpp
-bool        is_difftest();
+extern "C" void is_difftest(char);
+bool            is_difftest_cycle();
 
 extern "C" void putch(int ch);
+
+uint32_t        get_csr_val(int);
+uint32_t        get_inst_reg();
+uint32_t        get_pc_reg();
+uint32_t        get_reg_val(int);
 #endif

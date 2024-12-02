@@ -36,24 +36,29 @@ cpustr(char *dst, int num, int base)
   return count;
 }
 
-static char NumberToChar[64] = {};
-static void
-printint(unsigned num, int base, int sign, int width) {
-  if(num == 0)
-  {
+void
+printint(long long num, int base, int sign, int width) {
+  if(num == 0) {
     putch('0');
     return;
   }
   
-  bool neg = false;
-  if ((int)num < 0 && sign) {
-    neg = true;
+  unsigned long long x;
+  char NumberToChar[16];
+  if (sign && num < 0) {
+    x = -num;
+    sign = 1;
+  } else {
+    x = num;
+    sign = 0;
   }
+
   int i = 0;
   do {
-      NumberToChar[i++] = digital[num % base];
-      num /= base;
-  } while(num != 0);
+      NumberToChar[i] = digital[x % base];
+      i++;
+      x /= base;
+  } while(x!= 0);
 
   if (width > 0)
   {
@@ -62,9 +67,10 @@ printint(unsigned num, int base, int sign, int width) {
       NumberToChar[i++] = '0';
     }
   }
-  if (neg) {
+
+  if (sign) {
     NumberToChar[i++] = '-';
-  } else if (width > 0) {
+  } else if (width > i) {
     NumberToChar[i++] = '0';
   }
 

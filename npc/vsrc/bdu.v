@@ -56,6 +56,9 @@ module bdu (
                 bdu_inst_r <= rdata_i;
                 valid <= 1'b1;
                 // $display("bdu_inst_r: %h", bdu_inst_r);
+            end else begin
+                $display("mem response error: %h", rresp_i);
+                $finish;
             end
             rready <= 1'b0;
         end else if (!rvalid_i) begin
@@ -192,4 +195,5 @@ module bdu (
     assign bdu_rs2_o = bdu_rs2;
     assign bdu_csr_addr_o = bdu_csr_addr;
     assign valid_o = valid;
+
 endmodule

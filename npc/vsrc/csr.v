@@ -71,4 +71,5 @@
                          {32{csr_raddr_i == `CSR_ADDR_MEPC}} & MEPC;
     assign csr_mtvec_o = MTVEC;
     assign csr_mepc_o = MEPC;
+
  endmodule

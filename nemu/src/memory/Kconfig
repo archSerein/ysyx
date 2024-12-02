@@ -31,4 +31,9 @@ config MEM_RANDOM
   help
     This may help to find undefined behaviors.
 
+config YSYXSOC
+  depends on TARGET_SHARE
+  bool "Memory-mapped ROM and SRAM"
+  default y
+
 endmenu #MEMORY

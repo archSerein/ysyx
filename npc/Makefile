@@ -1,15 +1,15 @@
 TOPNAME = ysyxSoCFull
 VCD = ./V$(TOPNAME).vcd
 NXDC_FILES = constr/top.nxdc
-INC_PATH ?= $(NPC_HOME)/include $(SOC_HOME)/perip/uart16550/rtl $(SOC_HOME)/perip/spi/rtl
+INC_PATH ?= $(NPC_HOME)/include
 ALL ?=
-IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.bin
-ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-npc.elf
+IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.bin
+ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.elf
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --trace --Wno-DECLFILENAME \
 				-O3 --x-assign unique --x-initial fast --noassert --build -cc \
-				--timescale "1ns/1ns" --no-timing
+				--timescale "1ns/1ns" --no-timing --autoflush
 
 BUILD_DIR = ./build
 OBJ_DIR = $(BUILD_DIR)/obj_dir
@@ -39,6 +39,7 @@ $(VCD): $(BUILD_DIR)/$(TOPNAME)
 # project source
 VSRCS =	$(shell find $(abspath ./vsrc) -name "*.v")
 VSRCS += $(shell find $(abspath ../ysyxSoC/perip) -name "*.v")
+VSRCS += $(shell find $(abspath ../ysyxSoC/build) -name "*.v")
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
 
@@ -61,13 +62,15 @@ $(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
 		@rm -rf $(OBJ_DIR)
 		$(VERILATOR) $(VERILATOR_CFLAGS) \
 		+incdir+/home/serein/ysyx/ysyx-workbench/npc/vsrc \
+		+incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/uart16550/rtl	\
+		+incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/spi/rtl	\
 		--top-module $(TOPNAME) $^ \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
 run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@$^ $(IMG)
+	@$^ $(IMG) -b
 	@echo "all done"
 
 gdb: $(BIN)

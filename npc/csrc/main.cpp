@@ -5,6 +5,8 @@
 #include "pmem.hpp"
 #include "defs.hpp"
 #include "ftrace.hpp"
+#include <verilated.h>
+#include "debug.hpp"
 
 const char ref_so_file[] = "/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so";
 extern "C" void init_disasm(const char *triple);
@@ -37,6 +39,7 @@ int main(int argc, char *argv[], char *env[]) {
         exit(0);
     }
 
+    Log("initializing memory: %s", argv[1]);
     long size = init_mem(argv[1]);
     #ifdef CONFIG_FTRACE
       parse_elf(argv[2]);
@@ -46,13 +49,16 @@ int main(int argc, char *argv[], char *env[]) {
       init_disasm("riscv32-pc-linux-gnu");
     #endif // CONFIG_ITRACE
 
-    reset(2);
+    parse_args(argc, argv);
+    Verilated::commandArgs(argc, argv);
+
+    reset(100);
+
+    flash_test();
     #ifdef CONFIG_DIFFTEST
         init_difftest(ref_so_file, size, 1234);
     #endif // CONFIG_DIFFTEST
 
-    parse_args(argc, argv);
-    Verilated::commandArgs(argc, argv);
     // 进入sdb
     sdb_mainloop();
 

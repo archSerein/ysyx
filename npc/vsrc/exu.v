@@ -14,6 +14,7 @@ module exu (
     // axi read addr channel
     input                               arready_i,
     output [31:0]                       araddr_o,
+    output [ 2:0]                       arsize_o,
     output                              arvalid_o,
     // axi write addr channel
     input                               awready_i,
@@ -144,9 +145,9 @@ module exu (
         ex_xret_flush,          
         ex_break_signal,        
         ex_jmp_flag,            
-        ex_jmp_target           
+        ex_jmp_target
     };
-    /*32 + 1 + 1 + 32 + 1 + 2 + 4 + 12 + 32 + 32 + 1 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 = 193*/
+    /*32 + 1 + 1 + 32 + 1 + 2 + 4 + 1 + 12 + 32 + 32 + 1 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 = 194*/
     wire    idle;
     always @(posedge clk_i) begin
         if (rst_i) begin
@@ -165,12 +166,16 @@ module exu (
     //                             ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata);
     // assign mem_wen_o        = (|ex_mem_we) && valid;
     // assign mem_ren_o        = (|ex_mem_re) && valid;
+    assign arsize_o         = {{3{ex_mem_re == 4'b1111}} & 3'b010} | 
+                              {{3{ex_mem_re == 4'b0011 || ex_mem_re == 4'b0111}} & 3'b001} |
+                              {{3{ex_mem_re == 4'b0001 || ex_mem_re == 4'b0101}} & 3'b000};
     assign araddr_o         = ex_alu_result;
     assign awaddr_o         = ex_alu_result;
 
     assign arvalid_o        = (|ex_mem_re) && valid;
     assign awvalid_o        = (|ex_mem_we) && valid;
 
+    // assign wdata_o          =   ex_rs2_value;
     assign wdata_o          =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
                                 ({32{ex_mem_we == 4'b0011}} & mem_half_wdata) |
                                 ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata); 

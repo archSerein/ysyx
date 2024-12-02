@@ -81,13 +81,13 @@ module lsu (
     wire [31:0] ms_final_result;
 
     wire [31:0] rdata;
-    assign ms_byteload =    {8{ms_mem_addr_mask == 2'b00}} & rdata[7:0] |
-                            {8{ms_mem_addr_mask == 2'b01}} & rdata[15:8] |
-                            {8{ms_mem_addr_mask == 2'b10}} & rdata[23:16] |
-                            {8{ms_mem_addr_mask == 2'b11}} & rdata[31:24];
+    assign ms_byteload =   {8{ms_mem_addr_mask == 2'b00}} & rdata[7:0] |
+                           {8{ms_mem_addr_mask == 2'b01}} & rdata[15:8] |
+                           {8{ms_mem_addr_mask == 2'b10}} & rdata[23:16] |
+                           {8{ms_mem_addr_mask == 2'b11}} & rdata[31:24];
 
-    assign ms_halfload =    {16{ms_mem_addr_mask == 2'b00}} & rdata[15:0] |
-                            {16{ms_mem_addr_mask == 2'b10}} & rdata[31:16];
+    assign ms_halfload =   {16{ms_mem_addr_mask == 2'b00}} & rdata[15:0] |
+                           {16{ms_mem_addr_mask == 2'b10}} & rdata[31:16];
 
     assign ms_wordload =   rdata;
 
@@ -142,6 +142,9 @@ module lsu (
                         valid <= 1'b1;
                         if (rvalid_i && (rresp_i == INST_OK || rresp_i == INST_EXOKAY)) begin
                             rdata_r <= rdata_i;
+                        end else if (rvalid_i) begin
+                            $display("fault response from memory");
+                            $finish;
                         end
                     end
                 end
@@ -172,10 +175,14 @@ module lsu (
     /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 32 + 1 + 1 + 1 = 119*/
 
     // 写回复的处理
-    wire [ 1:0] bresp;
-    assign bresp = bvalid_i ? bresp_i : 2'b0;
-    always @(bresp) begin
-        $display("lsu: bresp = %d", bresp);
+    always @(bvalid_i) begin
+        if (bresp_i == 2'b00) begin
+            // $display("write response okay");
+        end
+        else begin
+            $display("write response error, bresp: %b", bresp_i);
+            $finish;
+        end
     end
 
     assign bready_o = state == WAIT;

@@ -23,11 +23,12 @@ __EXPORT void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction)
   if (direction == DIFFTEST_TO_REF) {
     int i;
     word_t *p = (word_t *)buf;
-    for (i = 0; i < n; i += 4)
+    for (i = 0; i+4 < n; i += 4)
     {
-      paddr_write(addr + i, 4, *(p + i / 4));
+      word_t data = *(p + i / 4);
+      paddr_write(addr + i, 4, data);
     }
-    for (i -= 4; i < n; i++)
+    for (; i < n; i++)
     {
       paddr_write(addr + i, 1, *((uint8_t *)p + i));
     }
@@ -62,6 +63,7 @@ __EXPORT void difftest_raise_intr(word_t NO) {
 __EXPORT void difftest_init(int port) {
   void init_mem();
   init_mem();
+
   /* Perform ISA dependent initialization. */
   init_isa();
 }
