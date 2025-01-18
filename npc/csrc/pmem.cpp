@@ -42,7 +42,7 @@ init_mem(char *path)
     long size = ftell(fp);
 
     fseek(fp, 0, SEEK_SET);
-    int ret = fread(mrom, size, 1, fp);
+    int ret = fread(flash, size, 1, fp);
     assert(ret == 1);
     Log("load image size: 0x%08lx", size);
 

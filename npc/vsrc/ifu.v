@@ -22,7 +22,7 @@ module ifu (
     input                               arready_i
 );
 
-    localparam RESET_PC = 32'h20000000;
+    localparam RESET_PC = 32'h30000000;
 
     reg  [31:0] ifu_pc;
     // 实例化一个加法器用来作为 pc 的自增

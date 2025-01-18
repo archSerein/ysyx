@@ -1,9 +1,9 @@
 MEMORY {
-    mrom : ORIGIN = 0x20000000, LENGTH = 4k
+    flash : ORIGIN = 0x30000000, LENGTH = 256M
     sram : ORIGIN = 0x0f000000, LENGTH = 8k
 }
-REGION_ALIAS("REGION_TEXT", mrom);
-REGION_ALIAS("REGION_RODATA", mrom);
+REGION_ALIAS("REGION_TEXT", flash);
+REGION_ALIAS("REGION_RODATA", flash);
 REGION_ALIAS("REGION_DATA", sram);
 REGION_ALIAS("REGION_BSS", sram);
 
@@ -13,34 +13,31 @@ SECTIONS {
     /* _pmem_start and _entry_offset are defined in LDFLAGS */
     /* Adjust the location counter if required. */
 
-    /* .text section located in mrom for code */
-    . = ORIGIN(mrom);
+    /* .text section located in flash for code */
+    . = ORIGIN(flash);
     .text : {
         *(entry)            /* Entry point symbols */
         *(.text*)           /* All text sections */
-        ASSERT(. <= 0x20001000, "Text section too large for mrom");
     } > REGION_TEXT
     
     etext = .;
     _etext = .;
 
-    /* .rodata section located in mrom for read-only data */
+    /* .rodata section located in flash for read-only data */
     .rodata : {
         *(.rodata*)         /* All read-only data sections */
-        ASSERT(. <= 0x20001000, "rodata section too large for mrom");
     } > REGION_RODATA
 
-    /* .data section initialized in mrom but loaded into sram */
+    /* .data section initialized in flash but loaded into sram */
     .data : {
         _data_start = .;
         *(.data*)            /* All data sections */
         _data_end = .;
-        ASSERT(. <= 0x20001000, "data section too large for mrom");
-    } > REGION_DATA AT > mrom
+    } > REGION_DATA AT > flash
     _load_data_size = SIZEOF(.data);
     _load_data_start = LOADADDR(.data);
 
-    /* Define the load address of the data section in mrom */
+    /* Define the load address of the data section in flash */
     edata = .;
     _edata = .;
 
