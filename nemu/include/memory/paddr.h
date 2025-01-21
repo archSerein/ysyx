@@ -19,8 +19,8 @@
 #include <common.h>
 
 #ifdef CONFIG_YSYXSOC
-  #define PMEM_LEFT  ((paddr_t)0x20000000)
-  #define PMEM_RIGHT ((paddr_t)0x20000fff)
+  #define PMEM_LEFT  ((paddr_t)0x30000000)
+  #define PMEM_RIGHT ((paddr_t)0x3fffffff)
   #define RESET_VECTOR (PMEM_LEFT + CONFIG_PC_RESET_OFFSET)
 #else
 #define PMEM_LEFT  ((paddr_t)CONFIG_MBASE)

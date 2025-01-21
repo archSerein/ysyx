@@ -93,9 +93,26 @@ static void bootloader() {
     memcpy(_data_start, _load_data_start, (size_t)_load_data_size);
 }
 
+static void info() {
+    uint32_t mvendorid, marchid;
+    // 读取 mvendorid 寄存器（地址 0xF11）
+    asm volatile(
+        "csrr %0, 0xf11"  // 读取 mvendorid 寄存器到 mvendorid 变量
+        : "=r"(mvendorid)  // 输出操作数，将结果放入 mvendorid
+    );
+
+    // 读取 marchid 寄存器（地址 0xF12）
+    asm volatile(
+        "csrr %0, 0xf12"  // 读取 marchid 寄存器到 marchid 变量
+        : "=r"(marchid)    // 输出操作数，将结果放入 marchid
+    );
+    printf("%s_%d\n", &mvendorid, marchid);
+}
+
 void _trm_init() {
     _uart_init();
     bootloader();
+    info();
     int ret = main(mainargs);
     halt(ret);
 }

@@ -19,6 +19,7 @@ uint32_t vaddr_read(uint32_t, int);
 uint8_t *guest_to_host(uint32_t paddr);
 uint8_t *mrom_to_host(uint32_t paddr);
 uint8_t *sram_to_host(uint32_t paddr);
+uint8_t *flash_to_host(uint32_t paddr);
 extern "C" void flash_read(int32_t addr, int32_t *data);
 extern "C" void mrom_read(int32_t addr, int32_t *data);
 #endif // __PMEM_HPP__

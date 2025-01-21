@@ -298,9 +298,11 @@ module ysyx_00000000_axi (
     `ifdef CONFIG_DIFFTEST
         import "DPI-C" function void difftest_skip_ref(input int is_skip);
         wire is_device_write;
+        wire is_rtc_mmio;
         assign is_device_write = exu_awaddr >= 32'h10000000 && exu_awaddr <= 32'h10000fff;
+        assign is_rtc_mmio = exu_araddr == 32'ha0000048 || exu_araddr == 32'ha000004c;
         always @(*) begin
-            if (is_device_write) begin
+            if (is_device_write || is_rtc_mmio) begin
                 // $display("write to device @ %h, data = %h", exu_awaddr, exu_wdata);
                 difftest_skip_ref(1);
             end else begin

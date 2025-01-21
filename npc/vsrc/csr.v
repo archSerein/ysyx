@@ -18,6 +18,8 @@
     reg     [`CSR_DATA_WIDTH-1:0]    MSTATUS;
     reg     [`CSR_DATA_WIDTH-1:0]    MTVEC;
     reg     [`CSR_DATA_WIDTH-1:0]    MEPC;
+    reg     [`CSR_DATA_WIDTH-1:0]    MVENDORID;
+    reg     [`CSR_DATA_WIDTH-1:0]    MARCHID;
 
     wire                    csr_mcause_we;
     wire                    csr_mstatus_we;
@@ -65,10 +67,24 @@
         end
     end
 
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            MVENDORID <= 32'h78797379;
+        end
+    end
+
+    always @(posedge clk_i) begin
+        if (rst_i) begin
+            MARCHID <= 32'h150be98;
+        end
+    end
+
     assign csr_rdata_o = {32{csr_raddr_i == `CSR_ADDR_MCAUSE}} & MCAUSE |
                          {32{csr_raddr_i == `CSR_ADDR_MSTATUS}} & MSTATUS |
                          {32{csr_raddr_i == `CSR_ADDR_MTVEC}} & MTVEC |
-                         {32{csr_raddr_i == `CSR_ADDR_MEPC}} & MEPC;
+                         {32{csr_raddr_i == `CSR_ADDR_MEPC}} & MEPC |
+                         {32{csr_raddr_i == `CSR_ADDR_MVENDORID}} & MVENDORID |
+                         {32{csr_raddr_i == `CSR_ADDR_MARCHID}} & MARCHID;
     assign csr_mtvec_o = MTVEC;
     assign csr_mepc_o = MEPC;
 

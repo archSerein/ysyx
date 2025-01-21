@@ -55,7 +55,7 @@ module bdu (
             if (rresp_i == INST_OK || rresp_i == INST_EXOKAY) begin
                 bdu_inst_r <= rdata_i;
                 valid <= 1'b1;
-                // $display("bdu_inst_r: %h", bdu_inst_r);
+                // $display("bdu_pc: %h bdu_inst: %h", bdu_pc, rdata_i);
             end else begin
                 $display("mem response error: %h", rresp_i);
                 $finish;

@@ -26,12 +26,14 @@ SECTIONS {
     /* .rodata section located in flash for read-only data */
     .rodata : {
         *(.rodata*)         /* All read-only data sections */
+        *(.srodata*)        /* All small read-only data sections */
     } > REGION_RODATA
 
     /* .data section initialized in flash but loaded into sram */
     .data : {
         _data_start = .;
         *(.data*)            /* All data sections */
+        *(.sdata*)           /* All small data sections */
         _data_end = .;
     } > REGION_DATA AT > flash
     _load_data_size = SIZEOF(.data);
@@ -51,7 +53,7 @@ SECTIONS {
     } > REGION_BSS
 
     /* Define heap and stack */
-    _heap_start = ALIGN(0x1000);  /* Align the heap start to 4KB boundary */
+    _heap_start = .;  /* Align the heap start to 4KB boundary */
 
     . = 0x0f002000;     /* Heap size of 0x2000 bytes (8KB total SRAM) */
     _stack_pointer = .;           /* Set stack pointer */

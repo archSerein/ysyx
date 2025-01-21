@@ -23,7 +23,7 @@
   #ifdef CONFIG_YSYXSOC
     uint8_t *sram = NULL;
     static uint32_t sram_size = 0x2000;
-    static uint32_t memsize = 0x1000;
+    static uint32_t memsize = CONFIG_MSIZE;
   #else
     static uint32_t memsize = CONFIG_MSIZE;
   #endif
@@ -74,7 +74,7 @@ void init_mem() {
 #ifdef CONFIG_YSYXSOC
   sram = malloc(sram_size);
   assert(sram);
-  IFDEF(CONFIG_MEM_RANDOM, memset(sram, rand(), sram_size));
+  // IFDEF(CONFIG_MEM_RANDOM, memset(sram, rand(), sram_size));
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), memsize));
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
