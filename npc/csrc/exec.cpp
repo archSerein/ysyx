@@ -4,6 +4,7 @@
 #include "defs.hpp"
 #include "debug.hpp"
 #include <iostream>
+#include <nvboard.h>
 
 #define MAX_INST_TO_PRINT 10
 
@@ -99,6 +100,7 @@ for (int i = 0; i < n; i++) {
         break;
     }
     
+    nvboard_update();
     single_cycle(&cur_inst);
 
     #ifdef CONFIG_DIFFTEST

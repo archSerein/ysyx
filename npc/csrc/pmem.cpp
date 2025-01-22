@@ -13,11 +13,13 @@
 uint8_t *sram;
 uint8_t *mrom;
 uint8_t *flash;
+uint8_t *psram;
 
 uint8_t* guest_to_host(uint32_t paddr) { return sram + paddr - CONFIG_MBASE; }
 uint8_t* mrom_to_host(uint32_t paddr) { return mrom + paddr - CONFIG_MROM_BASE; }
 uint8_t* sram_to_host(uint32_t paddr) { return sram + paddr - CONFIG_SRAM_BASE; }
 uint8_t* flash_to_host(uint32_t paddr) { return flash + paddr; }
+uint8_t* psram_to_host(uint32_t paddr) { return psram + paddr; }
 
 long
 init_mem(char *path)
@@ -25,6 +27,11 @@ init_mem(char *path)
     mrom = (uint8_t *)aligned_alloc(32, CONFIG_MROM_SIZE);
     sram = (uint8_t *)aligned_alloc(32, CONFIG_SRAM_SIZE);
     flash = (uint8_t *)aligned_alloc(32, CONFIG_FLASH_SIZE);
+    psram = (uint8_t *)aligned_alloc(32, CONFIG_PSRAM_SIZE);
+    if (mrom == NULL || sram == NULL || flash == NULL || psram == NULL) {
+        Log("mem init fail, exit now\n");
+        exit(1);
+    }
     if(path == NULL)
     {
         printf("No image is given, exit now\n");
@@ -74,13 +81,6 @@ pmem_read(int raddr)
 extern "C" void
 pmem_write(int waddr, int wdata, char wmask)
 {
-    // if (waddr == 0xa00003f8) {
-    //     #ifdef CONFIG_DIFFTEST
-    //         difftest_skip_ref();
-    //     #endif // CONFIG_DIFFTEST
-    //     printf("%c", wdata & 0xff);
-    //     return;
-    // }
     if (waddr == 0xa00003f8) {
         printf("axi lite arbitrator fault\n");
         return;
@@ -156,6 +156,7 @@ free() {
     free(mrom);
     free(sram);
     free(flash);
+    free(psram);
 }
 
 void flash_test() {
@@ -193,4 +194,29 @@ extern "C" void mrom_read(int32_t addr, int32_t *data) {
         // Log("mrom_read: %08x %08x", addr, *(int32_t *)paddr);
     #endif // CONFIG_MTRACE
     *data = *(int32_t *)paddr;
+}
+
+extern "C" void psram_read(int32_t addr, int32_t *data) {
+    if ((uint32_t)addr >= CONFIG_PSRAM_BASE + CONFIG_PSRAM_SIZE ||
+        (uint32_t)addr < CONFIG_PSRAM_BASE) {
+        Log("psram_read: 0x%08x out of range", addr);
+        *data = -1;
+        return;
+    }
+
+    uint8_t *paddr;
+    paddr = psram_to_host((uint32_t)MASK(addr));
+    #ifdef CONFIG_MTRACE
+        Log("psram_read: %08x %08x", addr, *(int32_t *)paddr);
+    #endif // CONFIG_MTRACE
+    *data = *(int32_t *)paddr;
+}
+
+extern "C" void psram_write(int32_t addr, int32_t *data) {
+    uint8_t *paddr;
+    paddr = psram_to_host((uint32_t)(addr));
+    #ifdef CONFIG_MTRACE
+        Log("psram_write: %08x %08x", addr, *data);
+    #endif // CONFIG_MTRACE
+    *(int32_t *)paddr = *data;
 }

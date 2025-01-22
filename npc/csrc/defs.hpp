@@ -27,6 +27,7 @@ void        isa_reg_display();
 void        info_w();
 void        free();
 void        sim_exit();
+void        nvboard_init_warp();
 #ifdef CONFIG_TRACE_WAVE
     void        sim_init();
 #endif // CONFIG_TRACE_WAVE

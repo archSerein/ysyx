@@ -7,6 +7,7 @@
 #include "reg.hpp"
 #include "debug.hpp"
 #include <cstdio>
+#include <nvboard.h>
 
 static TOP_NAME top;
 #ifdef CONFIG_TRACE_WAVE
@@ -167,4 +168,10 @@ uint32_t get_csr_val(int addr) {
         default:
             panic("get_csr_val fault addr: %x", addr);
     }
+}
+
+void nvboard_bind_all_pins(TOP_NAME *top);
+void nvboard_init_warp() {
+    nvboard_bind_all_pins(&top);
+    nvboard_init();
 }

@@ -7,6 +7,7 @@
 #include "ftrace.hpp"
 #include <verilated.h>
 #include "debug.hpp"
+#include <nvboard.h>
 
 const char ref_so_file[] = "/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so";
 extern "C" void init_disasm(const char *triple);
@@ -52,6 +53,9 @@ int main(int argc, char *argv[], char *env[]) {
     parse_args(argc, argv);
     Verilated::commandArgs(argc, argv);
 
+    // nvboard
+    nvboard_init_warp();
+
     reset(100);
 
     // flash_test();
@@ -65,5 +69,6 @@ int main(int argc, char *argv[], char *env[]) {
     sim_exit();
     // 释放mem申请的内存
     free();
+    nvboard_quit();
     return is_exit_status_bad();
 }

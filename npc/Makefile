@@ -1,6 +1,6 @@
 TOPNAME = ysyxSoCFull
 VCD = ./V$(TOPNAME).vcd
-NXDC_FILES = constr/top.nxdc
+NXDC_FILES = constr/ysyxSoCFull.nxdc
 INC_PATH ?= $(NPC_HOME)/include
 ALL ?=
 IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.bin
@@ -32,9 +32,9 @@ $(VCD): $(BUILD_DIR)/$(TOPNAME)
 	@./$(BUILD_DIR)/$(TOPNAME) $(IMG) +verilator+rand+reset+2
 
 # constraint file
-# SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
-# $(SRC_AUTO_BIND): $(NXDC_FILES)
-#	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
+SRC_AUTO_BIND = $(abspath $(BUILD_DIR)/auto_bind.cpp)
+$(SRC_AUTO_BIND): $(NXDC_FILES)
+	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 # project source
 VSRCS =	$(shell find $(abspath ./vsrc) -name "*.v")
@@ -44,7 +44,7 @@ CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*
 CSRCS += $(SRC_AUTO_BIND)
 
 # rules for NVBoard
-# include $(NVBOARD_HOME)/scripts/nvboard.mk
+include $(NVBOARD_HOME)/scripts/nvboard.mk
 
 # rules for verilator
 INCFLAGS = $(addprefix -I, $(INC_PATH))
@@ -57,7 +57,7 @@ ifeq ($(CONFIG_DIFFTEST), y)
 	LDFLAGS += -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
 endif
 
-$(BIN): $(VSRCS) $(CSRCS) # $(NVBOARD_ARCHIVE)
+$(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 		@python3 $(NPC_HOME)/trans.py
 		@rm -rf $(OBJ_DIR)
 		$(VERILATOR) $(VERILATOR_CFLAGS) \
