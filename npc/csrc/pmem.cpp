@@ -197,26 +197,19 @@ extern "C" void mrom_read(int32_t addr, int32_t *data) {
 }
 
 extern "C" void psram_read(int32_t addr, int32_t *data) {
-    if ((uint32_t)addr >= CONFIG_PSRAM_BASE + CONFIG_PSRAM_SIZE ||
-        (uint32_t)addr < CONFIG_PSRAM_BASE) {
-        Log("psram_read: 0x%08x out of range", addr);
-        *data = -1;
-        return;
-    }
-
     uint8_t *paddr;
-    paddr = psram_to_host((uint32_t)MASK(addr));
+    paddr = psram_to_host((uint32_t)(addr));
     #ifdef CONFIG_MTRACE
         Log("psram_read: %08x %08x", addr, *(int32_t *)paddr);
     #endif // CONFIG_MTRACE
     *data = *(int32_t *)paddr;
 }
 
-extern "C" void psram_write(int32_t addr, int32_t *data) {
+extern "C" void psram_write(int32_t addr, int8_t data) {
     uint8_t *paddr;
     paddr = psram_to_host((uint32_t)(addr));
     #ifdef CONFIG_MTRACE
-        Log("psram_write: %08x %08x", addr, *data);
+        Log("psram_write: %08x %02x", addr, data);
     #endif // CONFIG_MTRACE
-    *(int32_t *)paddr = *data;
+    *(int8_t *)paddr = data;
 }

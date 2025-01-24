@@ -87,16 +87,18 @@ localparam GO_BSY = 32'h100;
 localparam MODE   = 32'h40;
 reg [2:0] xip_state;
 reg       in_xip;
+reg       xip_rdata_valid;
 reg [31:0] pwdata_reg;
+reg [31:0] prdata_reg;
 
 // xip finite state machine
 always @(posedge clock) begin
   if (reset) begin
     in_xip <= 1'b0;
   end else begin
-    if (!in_xip && in_paddr >= flash_addr_start && in_paddr <= flash_addr_end) begin
+    if (in_penable && in_paddr >= flash_addr_start && in_paddr <= flash_addr_end) begin
       in_xip <= 1'b1;
-    end else if (xip_state == IDLE) begin
+    end else if (!in_penable) begin
       in_xip <= 1'b0;
     end
   end
@@ -109,6 +111,7 @@ end
 always @(posedge clock) begin
   if (reset) begin
     xip_state <= IDLE;
+    xip_rdata_valid <= 1'b0;
   end else if (in_xip) begin
     case (xip_state)
       IDLE: begin
@@ -155,12 +158,16 @@ always @(posedge clock) begin
         if (pready && !in_pslverr) begin
           // Poll for completion, then read the data from SPI_RX0
           pwdata_reg <= 32'h0;  // disable slave device
+          prdata_reg <= prdata;
+          xip_rdata_valid <= 1'b1;
           xip_state <= SS_DIS;
         end
       end
       SS_DIS: begin
-        if (pready && !in_pslverr)
+        if (pready && !in_pslverr) begin
+          xip_rdata_valid <= 1'b0;
           xip_state <= IDLE;
+        end
       end
       default: begin
         $write("ERROR: Unsupported state %d\n", xip_state);
@@ -184,10 +191,12 @@ assign pwrite   = !in_xip ? in_pwrite :
 assign psel     = !in_xip ? in_psel : 1'b1;
 assign penable  = !in_xip ? in_penable : 1'b1;
 assign pwdata   = !in_xip ? in_pwdata : pwdata_reg;
-assign in_pready= !in_xip ? pready :
-                  (xip_state == IDLE || xip_state == SS_DIS);
+assign in_pready= !in_xip ? pready : xip_rdata_valid;
 assign in_prdata= !in_xip ? prdata :
-                  {32{xip_state == SS_DIS}} & `INVERT_ENDIAN(prdata);
+                  `INVERT_ENDIAN(prdata_reg);
 `endif // FAST_FLASH
 
+// 后续改成中断方式
+// IE flag bit
+// wb_int_o signal
 endmodule

@@ -234,3 +234,75 @@ module PSRAM_WRITER (
 
 
 endmodule
+
+// USE Command 0x35
+module PSRAM_MODE (
+    input   wire            clk,
+    input   wire            rst_n,
+    input   wire [23:0]     addr,
+    input   wire [2:0]      size,
+    input   wire            sw,
+    output  wire [31: 0]    line,
+    output  wire            done,
+
+    output  reg             sck,
+    output  reg             ce_n,
+    input   wire [3:0]      din,
+    output  wire [3:0]      dout,
+    output  wire            douten
+);
+
+    localparam  IDLE = 1'b0,
+                SWITCH = 1'b1;
+
+    wire [7:0]  FINAL_COUNT = 7'h7;
+
+    reg         state, nstate;
+    reg [7:0]   counter;
+
+    wire[7:0]   CMD_EBH = 8'h35;
+
+    always @*
+        case (state)
+            IDLE: if(sw) nstate = SWITCH; else nstate = IDLE;
+            SWITCH: if(done) nstate = IDLE; else nstate = SWITCH;
+        endcase
+
+    always @ (posedge clk or negedge rst_n)
+        if(!rst_n) state <= IDLE;
+        else state <= nstate;
+
+    // Drive the Serial Clock (sck) @ clk/2
+    always @ (posedge clk or negedge rst_n)
+        if(!rst_n)
+            sck <= 1'b0;
+        else if(~ce_n)
+            sck <= ~ sck;
+        else if(state == IDLE)
+            sck <= 1'b0;
+
+    // ce_n logic
+    always @ (posedge clk or negedge rst_n)
+        if(!rst_n)
+            ce_n <= 1'b1;
+        else if(state == SWITCH)
+            ce_n <= 1'b0;
+        else
+            ce_n <= 1'b1;
+
+    always @ (posedge clk or negedge rst_n)
+        if(!rst_n)
+            counter <= 8'b0;
+        else if(sck & ~done)
+            counter <= counter + 1'b1;
+        else if(state == IDLE)
+            counter <= 8'b0;
+
+    assign dout     =   {3'b0, CMD_EBH[7 - counter]}:
+
+    assign douten   = (~ce_n);
+
+    assign done     = (counter == FINAL_COUNT+1);
+
+    assign line     =   32'h0;
+endmodule

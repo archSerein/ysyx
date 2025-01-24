@@ -59,6 +59,8 @@ module EF_PSRAM_CTRL_wb (
     wire        mr_done;
     wire        mw_wr;
     wire        mw_done;
+    wire        mm_sw;
+    wire        mm_done;
 
     //wire        doe;
 
@@ -161,6 +163,22 @@ module EF_PSRAM_CTRL_wb (
         .douten(mw_doe)
     );
 
+    PSRAM_MODE MM (
+        .clk(clk_i),
+        .rst_n(~rst_i),
+        .addr(24'h0),
+        .sw(mm_sw),
+        //.size(size), Always read a word
+        .size(3'd0),
+        .done(mm_done),
+        .line(dat_o),
+        .sck(mm_sck),
+        .ce_n(mm_ce_n),
+        .din(mm_din),
+        .dout(mm_dout),
+        .douten(mm_doe)
+    );
+
     assign sck  = wb_we ? mw_sck  : mr_sck;
     assign ce_n = wb_we ? mw_ce_n : mr_ce_n;
     assign dout = wb_we ? mw_dout : mr_dout;
@@ -168,5 +186,6 @@ module EF_PSRAM_CTRL_wb (
 
     assign mw_din = din;
     assign mr_din = din;
-    assign ack_o = wb_we ? mw_done :mr_done ;
+    assign mm_din = din;
+    assign ack_o = wb_we ? mw_done : mr_done ;
 endmodule
