@@ -36,8 +36,9 @@ paddr_t host_to_guest(uint8_t *haddr);
 #ifdef CONFIG_YSYXSOC
 static inline bool in_pmem(paddr_t addr) {
   bool in_mrom = addr >= PMEM_LEFT && addr <= PMEM_RIGHT;
+  bool in_psram = addr >= 0x80000000 && addr <= 0x80ffffff;
   bool in_sram = addr >= 0x0f000000 && addr <= 0x0f001fff;
-  return in_mrom || in_sram;
+  return in_mrom || in_sram || in_psram;
 }
 #else
 static inline bool in_pmem(paddr_t addr) {

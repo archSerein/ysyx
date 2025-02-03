@@ -1,11 +1,11 @@
 MEMORY {
     flash : ORIGIN = 0x30000000, LENGTH = 256M
-    sram : ORIGIN = 0x0f000000, LENGTH = 8k
+    psram : ORIGIN = 0x80000000, LENGTH = 4M
 }
 REGION_ALIAS("REGION_TEXT", flash);
 REGION_ALIAS("REGION_RODATA", flash);
-REGION_ALIAS("REGION_DATA", sram);
-REGION_ALIAS("REGION_BSS", sram);
+REGION_ALIAS("REGION_DATA", psram);
+REGION_ALIAS("REGION_BSS", psram);
 
 ENTRY(_start)
 
@@ -29,7 +29,7 @@ SECTIONS {
         *(.srodata*)        /* All small read-only data sections */
     } > REGION_RODATA
 
-    /* .data section initialized in flash but loaded into sram */
+    /* .data section initialized in flash but loaded into psram */
     .data : {
         _data_start = .;
         *(.data*)            /* All data sections */
@@ -43,7 +43,7 @@ SECTIONS {
     edata = .;
     _edata = .;
 
-    /* .bss section located in sram for uninitialized data */
+    /* .bss section located in psram for uninitialized data */
     .bss : {
         _bss_start = .;     /* Start of the BSS section */
         *(.bss*)            /* All bss sections */
@@ -52,12 +52,14 @@ SECTIONS {
         _bss_end = .;       /* End of the BSS section */
     } > REGION_BSS
 
-    /* Define heap and stack */
-    _heap_start = .;  /* Align the heap start to 4KB boundary */
-
-    . = 0x0f002000;     /* Heap size of 0x2000 bytes (8KB total SRAM) */
-    _stack_pointer = .;           /* Set stack pointer */
-    
     end = .;                      /* End symbol */
     _end = .;
+    
+    /* Define heap and stack */
+    . = 0x0f000000;     /* Heap start address */
+    _heap_start = .;  /* Align the heap start to 4KB boundary */
+
+    . = 0x0f002000;     /* Heap size of 0x2000 bytes (8KB total psram) */
+    _stack_pointer = .;           /* Set stack pointer */
+    
 }

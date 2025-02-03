@@ -54,6 +54,11 @@ module EF_PSRAM_CTRL_wb (
     wire [3:0]  mw_dout;
     wire        mw_doe;
 
+    wire        mm_sck;
+    wire        mm_ce_n;
+    wire [3:0]  mm_dout;
+    wire        mm_doe;
+
     // PSRAM Reader and Writer wires
     wire        mr_rd;
     wire        mr_done;
@@ -72,22 +77,28 @@ module EF_PSRAM_CTRL_wb (
 
     // The FSM
     reg         state, nstate;
+    reg         psram_qpi_mode;
     always @ (posedge clk_i or posedge rst_i)
-        if(rst_i)
+        if(rst_i) begin
             state <= ST_IDLE;
-        else
+            psram_qpi_mode <= 1'b0;
+        end else begin
             state <= nstate;
+            if (nstate == ST_IDLE && !psram_qpi_mode)
+                psram_qpi_mode <= 1'b1;                
+        end
 
     always @* begin
         case(state)
             ST_IDLE :
-                if(wb_valid)
+                if(wb_valid || !psram_qpi_mode)
                     nstate = ST_WAIT;
                 else
                     nstate = ST_IDLE;
 
             ST_WAIT :
-                if((mw_done & wb_we) | (mr_done & wb_re))
+                if((mw_done & wb_we) | (mr_done & wb_re) |
+                    (mm_done & mm_sw))
                     nstate = ST_IDLE;
                 else
                     nstate = ST_WAIT;
@@ -131,6 +142,7 @@ module EF_PSRAM_CTRL_wb (
 
     assign mr_rd    = ( (state==ST_IDLE ) & wb_re );
     assign mw_wr    = ( (state==ST_IDLE ) & wb_we );
+    assign mm_sw    = ( !psram_qpi_mode & !rst_i );
 
     PSRAM_READER MR (
         .clk(clk_i),
@@ -139,6 +151,7 @@ module EF_PSRAM_CTRL_wb (
         .rd(mr_rd),
         //.size(size), Always read a word
         .size(3'd4),
+        .is_qpi_mode(psram_qpi_mode),
         .done(mr_done),
         .line(dat_o),
         .sck(mr_sck),
@@ -154,6 +167,7 @@ module EF_PSRAM_CTRL_wb (
         .addr({adr_i[23:0]}),
         .wr(mw_wr),
         .size(size),
+        .is_qpi_mode(psram_qpi_mode),
         .done(mw_done),
         .line(wdata),
         .sck(mw_sck),
@@ -166,26 +180,30 @@ module EF_PSRAM_CTRL_wb (
     PSRAM_MODE MM (
         .clk(clk_i),
         .rst_n(~rst_i),
-        .addr(24'h0),
         .sw(mm_sw),
-        //.size(size), Always read a word
-        .size(3'd0),
         .done(mm_done),
-        .line(dat_o),
         .sck(mm_sck),
         .ce_n(mm_ce_n),
-        .din(mm_din),
         .dout(mm_dout),
         .douten(mm_doe)
     );
 
-    assign sck  = wb_we ? mw_sck  : mr_sck;
-    assign ce_n = wb_we ? mw_ce_n : mr_ce_n;
-    assign dout = wb_we ? mw_dout : mr_dout;
-    assign douten  = wb_we ? {4{mw_doe}}  : {4{mr_doe}};
+    assign sck  = mm_sw ? mm_sck :
+                  wb_we ? mw_sck :
+                  mr_sck;
+    assign ce_n = mm_sw ? mm_ce_n :
+                  wb_we ? mw_ce_n :
+                  mr_ce_n;
+    assign dout = mm_sw ? mm_dout :
+                  wb_we ? mw_dout :
+                  mr_dout;
+    assign douten  = mm_sw ? {4{mm_doe}} :
+                     wb_re ? {4{mr_doe}} :
+                     {4{mw_doe}};
 
     assign mw_din = din;
     assign mr_din = din;
-    assign mm_din = din;
-    assign ack_o = wb_we ? mw_done : mr_done ;
+    assign ack_o = mm_sw ? mm_done :
+                   wb_we ? mw_done :
+                   mr_done;
 endmodule

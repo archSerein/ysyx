@@ -58,7 +58,6 @@ int main(int argc, char *argv[], char *env[]) {
 
     reset(100);
 
-    // flash_test();
     #ifdef CONFIG_DIFFTEST
         init_difftest(ref_so_file, size, 1234);
     #endif // CONFIG_DIFFTEST

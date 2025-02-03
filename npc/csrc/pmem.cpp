@@ -159,13 +159,6 @@ free() {
     free(psram);
 }
 
-void flash_test() {
-    Log("init flash starting:...");
-    for (uint32_t i = 0; i < CONFIG_FLASH_SIZE; i += 4) {
-        *(uint32_t *)(flash + i) = i;
-    }
-    Log("init flash finish");
-}
 extern "C" void flash_read(int32_t addr, int32_t *data) {
     if ((uint32_t)addr >= CONFIG_FLASH_SIZE) {
         Log("flash_read: 0x%08x out of range", addr);
@@ -191,7 +184,7 @@ extern "C" void mrom_read(int32_t addr, int32_t *data) {
     uint8_t *paddr;
     paddr = mrom_to_host((uint32_t)MASK(addr));
     #ifdef CONFIG_MTRACE
-        // Log("mrom_read: %08x %08x", addr, *(int32_t *)paddr);
+        Log("mrom_read: %08x %08x", addr, *(int32_t *)paddr);
     #endif // CONFIG_MTRACE
     *data = *(int32_t *)paddr;
 }

@@ -10,7 +10,7 @@
 #define CONFIG_FLASH_BASE    0x30000000
 #define CONFIG_FLASH_SIZE    0x04000000
 #define CONFIG_PSRAM_BASE    0x80000000
-#define CONFIG_PSRAM_SIZE    0x1fffffff
+#define CONFIG_PSRAM_SIZE    0x02000000
 
 long init_mem(char *);
 void free();

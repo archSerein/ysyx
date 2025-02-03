@@ -4,6 +4,7 @@ module psram(
   inout [3:0] dio
 );
 
+  reg        PSRAM_QPI_MODE;
   localparam CMD    = 2'b00;
   localparam ADDR   = 2'b01;
   localparam READ   = 2'b10;
@@ -21,6 +22,9 @@ module psram(
   reg    [ 1:0] state;
   always @(posedge sck or posedge ce_n) begin
     if (!ce) begin
+      if (cmd == 8'h35) begin
+        PSRAM_QPI_MODE <= 1'b1;
+      end
       state <= CMD;
       counter <= 3'h0;
       data <= 32'h0;
@@ -28,8 +32,13 @@ module psram(
     end else begin
       case (state)
         CMD: begin
-          cmd <= {cmd[6:0], dio[0]};
-          if (counter == 3'h7) begin
+          if (PSRAM_QPI_MODE) begin
+            cmd <= {cmd[3:0], dio[3:0]};
+          end else begin
+            cmd <= {cmd[6:0], dio[0]};
+          end
+          if ((counter == 3'h7 && !PSRAM_QPI_MODE) ||
+              (counter == 3'h1 && PSRAM_QPI_MODE)) begin
             counter <= 3'h0;
             state <= ADDR;
           end else begin

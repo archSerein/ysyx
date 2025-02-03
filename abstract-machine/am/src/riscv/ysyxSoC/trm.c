@@ -19,8 +19,8 @@
 static const char mainargs[] = MAINARGS;
 int main(const char *args);
 
-#define _heap_start 0x0f000000
-#define _heap_end   0x0f001fff
+#define _heap_start 0x80000000
+#define _heap_end   0x81ffffff
 
 // extern char _heap_start[], _heap_end[];
 Area heap = RANGE(_heap_start, _heap_end);
@@ -107,6 +107,12 @@ static void info() {
         : "=r"(marchid)    // 输出操作数，将结果放入 marchid
     );
     printf("%s_%d\n", &mvendorid, marchid);
+    asm volatile("sw %0, 0(%1)" : : "r"(marchid), "r"(0x10002008));
+    uint32_t pass = 0;
+    while (pass != 0x0f) {
+        asm volatile("lw %0, 0(%1)" : "=r"(pass) : "r"(0x10002004));
+    }
+    printf("welcome to my riscv npc!\n");
 }
 
 void _trm_init() {
