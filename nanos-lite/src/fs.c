@@ -11,7 +11,8 @@ typedef struct {
   WriteFn write;
 } Finfo;
 
-enum {FD_STDIN, FD_STDOUT, FD_STDERR, FD_FB};
+enum {FD_STDIN, FD_STDOUT, FD_STDERR, FD_EVENTS, FD_DISPINFO,
+        FD_FB};
 
 size_t invalid_read(void *buf, size_t offset, size_t len) {
   panic("invalid_read: should not reach here");
@@ -23,21 +24,30 @@ size_t invalid_write(const void *buf, size_t offset, size_t len) {
   return 0;
 }
 
+extern size_t events_read(void *buf, size_t offset, size_t len);
+extern size_t serial_write(const void *buf, size_t offset, size_t len);
+extern size_t dispinfo_read(void *buf, size_t offset, size_t len);
+extern size_t fb_write(const void *buf, size_t offset, size_t len);
 /* This is the information about all files in disk. */
 static Finfo file_table[] __attribute__((used)) = {
   [FD_STDIN]  = {"stdin", 0, 0, invalid_read, invalid_write},
-  [FD_STDOUT] = {"stdout", 0, 0, invalid_read, invalid_write},
+  [FD_STDOUT] = {"stdout", 0, 0, invalid_read, serial_write},
   [FD_STDERR] = {"stderr", 0, 0, invalid_read, invalid_write},
+  [FD_EVENTS] = {"/dev/events", 0, 0, events_read, invalid_write},
+  [FD_DISPINFO] = {"/proc/dispinfo", 0, 0, dispinfo_read, invalid_write},
+  [FD_FB] = {"/dev/fb", 0, 0, invalid_read, fb_write},
 #include "files.h"
 };
 
-size_t disk_offset_start[24];
+#define NR_FILES (sizeof(file_table) / sizeof(file_table[0]))
+size_t disk_offset_start[NR_FILES];
 
 void init_fs() {
   // TODO: initialize the size of /dev/fb
+  int w = 400;
+  int h = 300;
+  file_table[FD_FB].size = w * h * 4;
 }
-
-#define NR_FILES 24
 
 extern size_t serial_write(const void *buf, size_t offset, size_t len);
 extern size_t ramdisk_write(const void *buf, size_t offset, size_t len);
@@ -60,13 +70,13 @@ fs_open(const char *pathname, int flags, int mode) {
 size_t
 fs_lseek(int fd, size_t offset, int whence) {
   switch (whence) {
-    case SEEK_SET: file_table[fd].disk_offset = disk_offset_start[fd] + offset; break;
-    case SEEK_CUR: file_table[fd].disk_offset += offset; break;
-    case SEEK_END: file_table[fd].disk_offset = file_table[fd].size + offset; break;
+    case SEEK_SET: disk_offset_start[fd] = file_table[fd].disk_offset + offset; break;
+    case SEEK_CUR: disk_offset_start[fd] += offset; break;
+    case SEEK_END: disk_offset_start[fd] = file_table[fd].size + file_table[fd].disk_offset + offset; break;
     default: panic("should not reach here");
   }
   #ifdef CONFIG_STRACE
-    printf("fs_lseek: change the file offset, current disk_offset->0x%x\n", file_table[fd].disk_offset);
+    printf("fs_lseek: change the file offset, current disk_offset->0x%x\n", disk_offset_start[fd]);
   #endif // !CONFIG_STRACE
   return file_table[fd].disk_offset;
 }
@@ -74,10 +84,14 @@ fs_lseek(int fd, size_t offset, int whence) {
 extern size_t ramdisk_read(void *buf, size_t offset, size_t len);
 size_t
 fs_read(int fd, void *buf, size_t len) {
-  if (fd == FD_STDIN || fd == FD_STDOUT || fd == FD_STDERR)
-    return 0;
-  size_t ret = ramdisk_read(buf, file_table[fd].disk_offset, len);
-  fs_lseek(fd, ret, SEEK_CUR);
+  size_t ret;
+  if (file_table[fd].read != NULL) {
+    ret = file_table[fd].read(buf, disk_offset_start[fd], len);
+  }
+  else {
+    ret = ramdisk_read(buf, disk_offset_start[fd], len);
+    fs_lseek(fd, ret, SEEK_CUR);
+  }
   #ifdef CONFIG_STRACE
     printf("fs_read: read %d bytes form the file %s\n", ret, file_table[fd].name);
   #endif // !CONFIG_STRACE
@@ -88,13 +102,14 @@ size_t
 fs_write(int fd, const void *buf, size_t len) {
   size_t ret;
   if (file_table[fd].write != NULL) {
-    ret = serial_write(buf, 0, len);
+    // ret = serial_write(buf, 0, len);
+    ret = file_table[fd].write(buf, disk_offset_start[fd], len);
     #ifdef CONFIG_STRACE
       printf("output %d bytes to terminal\n", ret);
     #endif // !CONFIG_STRACE
     return ret;
   } else {
-    ret = ramdisk_write(buf, file_table[fd].disk_offset, len);
+    ret = ramdisk_write(buf, disk_offset_start[fd], len);
     fs_lseek(fd, ret, SEEK_CUR);
     #ifdef CONFIG_STRACE
       printf("output %d bytes to file %s\n", ret, file_table[fd].name);

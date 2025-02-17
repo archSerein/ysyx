@@ -1,9 +1,11 @@
 AM_SRCS := riscv/ysyxSoC/start.S \
+		   riscv/ysyxSoC/trap.S \
            riscv/ysyxSoC/trm.c \
 		   riscv/ysyxSoC/ioe.c \
 		   riscv/ysyxSoC/timer.c \
            platform/dummy/vme.c \
-           platform/dummy/mpe.c
+           platform/dummy/mpe.c \
+		   riscv/ysyxSoC/cte.C
 
 CFLAGS    += -fdata-sections -ffunction-sections
 LDFLAGS   += -T $(AM_HOME)/scripts/ysyxSoClinker.ld \
@@ -15,7 +17,10 @@ CFLAGS += -DMAINARGS=\"$(mainargs)\"
 image: $(IMAGE).elf
 	@$(OBJDUMP) -d $(IMAGE).elf > $(IMAGE).txt
 	@echo + OBJCOPY "->" $(IMAGE_REL).bin
-	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
+	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents \
+	--set-section-flags .bss.extra=alloc,contents -O binary \
+	-j .ftext -j .text -j .rodata -j .data.extra -j .data \
+	-j .ssbl $(IMAGE).elf $(IMAGE).bin
 
 run: image
 	$(MAKE) -C $(NPC_HOME) ISA=$(ISA) run IMG=$(IMAGE).bin

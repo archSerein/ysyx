@@ -23,9 +23,11 @@
   #ifdef CONFIG_YSYXSOC
     uint8_t *sram = NULL;
     uint8_t *psram = NULL;
+    uint8_t *sdram = NULL;
     static uint32_t sram_size = 0x2000;
     static uint32_t psram_size = 0x1000000;
     static uint32_t memsize = CONFIG_MSIZE;
+    static uint32_t sdram_size = 0x2000000;
   #else
     static uint32_t memsize = CONFIG_MSIZE;
   #endif
@@ -40,12 +42,14 @@ static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
     if (paddr >= PMEM_LEFT && paddr <= PMEM_RIGHT) return pmem + paddr - PMEM_LEFT;
     if (paddr >= 0x80000000 && paddr <= 0x80ffffff) return psram + paddr - 0x80000000;
     if (paddr >= 0x0f000000 && paddr <= 0x0f001fff) return sram + paddr - 0x0f000000;
+    if (paddr >= 0xa0000000 && paddr <= 0xbfffffff) return sdram + paddr - 0xa0000000;
     return NULL;
   }
   paddr_t host_to_guest(uint8_t *haddr) {
     if (haddr >= pmem && haddr < pmem + memsize) return haddr - pmem + PMEM_LEFT;
     if (haddr >= sram && haddr < sram + sram_size) return haddr - sram + 0x0f000000;
     if (haddr >= psram && haddr < psram + psram_size) return haddr - psram + 0x80000000;
+    if (haddr >= sdram && haddr < sdram + sdram_size) return haddr - sdram + 0xa0000000;
     return 0;
   }
 #else
@@ -78,8 +82,10 @@ void init_mem() {
 #ifdef CONFIG_YSYXSOC
   sram = malloc(sram_size);
   psram = malloc(psram_size);
+  sdram = malloc(sdram_size);
   assert(sram);
   assert(psram);
+  assert(sdram);
   // IFDEF(CONFIG_MEM_RANDOM, memset(sram, rand(), sram_size));
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), memsize));

@@ -19,7 +19,7 @@
 #include <common.h>
 
 enum {
-  MEPC = 0, MSTATUS, MTVEC, MCAUSE,
+  MEPC = 0, MSTATUS, MTVEC, MCAUSE
 };
 typedef struct {
   word_t gpr[MUXDEF(CONFIG_RVE, 16, 32)];

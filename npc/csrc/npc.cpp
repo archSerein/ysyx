@@ -22,6 +22,22 @@ extern "C" void ending(int num) { e = num; }
 extern "C" void putch(int ch) { putchar(ch); }
 static void update_register_array();
 
+#ifdef CONFIG_TRACE_WAVE
+bool is_open_trace_wave = false;
+void open_trace_wave(uint32_t pc) {
+    if (!is_open_trace_wave) {
+        is_open_trace_wave = true;
+        Log("open trace wave");
+    }
+}
+void close_trace_wave(uint32_t pc) {
+    // if (is_open_trace_wave && (pc < 0xa0000000 || pc > 0xa2000000)) {
+    //     is_open_trace_wave = false;
+    //     Log("close trace wave");
+    // }
+}
+#endif // CONFIG_TRACE_WAVE
+    
 void
 single_cycle(inst_i *cur_inst) {
     if (e)
@@ -44,17 +60,25 @@ single_cycle(inst_i *cur_inst) {
         cur_inst->pc = get_pc_reg();
         cur_inst->inst = get_inst_reg();
     }
+    #ifdef CONFIG_TRACE_WAVE
+        open_trace_wave(get_pc_reg());
+        close_trace_wave(get_pc_reg());
+    #endif // CONFIG_TRACE_WAVE
     top.clock = 0; // 切换时钟状态
     top.eval();
     #ifdef CONFIG_TRACE_WAVE
-        contextp->timeInc(1);
-        tfp->dump(contextp->time());
+        if (is_open_trace_wave) {
+            contextp->timeInc(1);
+            tfp->dump(contextp->time());
+        }
     #endif // CONFIG_TRACE_WAVE
     top.clock = 1; // 切换
     top.eval();
     #ifdef CONFIG_TRACE_WAVE
-        contextp->timeInc(1);
-        tfp->dump(contextp->time());
+        if (is_open_trace_wave) {
+            contextp->timeInc(1);
+            tfp->dump(contextp->time());
+        }
     #endif // CONFIG_TRACE_WAVE
     update_register_array();
 }

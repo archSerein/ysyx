@@ -22,15 +22,14 @@ module clint (
         end
     end
 
-    localparam  ready = 1'b1;
     reg        valid;
     reg        [31:0]       rdata;
     always @(posedge clk_i) begin
         if (arvalid_i) begin
             valid <= 1'b1;
-            if (araddr_i == 32'ha0000048) begin
+            if (araddr_i == 32'h02000048) begin
                 rdata <= mtime[31:0];
-            end else if (araddr_i == 32'ha000004c) begin
+            end else if (araddr_i == 32'h0200004c) begin
                 rdata <= mtime[63:32];
             end
         end else begin
@@ -39,6 +38,6 @@ module clint (
     end
 
     assign rdata_o     = rdata;
-    assign arready_o   = ready;
+    assign arready_o   = !valid;
     assign rvalid_o    = valid;
 endmodule;

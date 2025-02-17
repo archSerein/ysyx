@@ -1,65 +1,67 @@
 MEMORY {
-    flash : ORIGIN = 0x30000000, LENGTH = 256M
-    psram : ORIGIN = 0x80000000, LENGTH = 4M
+    flash (rx) : ORIGIN = 0x30000000, LENGTH = 256M
+    sdram (rwx) : ORIGIN = 0xa0000000, LENGTH = 32M
+    psram (rwx) : ORIGIN = 0x80000000, LENGTH = 4M
+    sram (rwx) : ORIGIN = 0x0f000000, LENGTH = 8K
 }
-REGION_ALIAS("REGION_TEXT", flash);
-REGION_ALIAS("REGION_RODATA", flash);
-REGION_ALIAS("REGION_DATA", psram);
-REGION_ALIAS("REGION_BSS", psram);
 
+INCLUDE /home/serein/ysyx/rt-thread-am/bsp/abstract-machine/extra.ld
 ENTRY(_start)
 
 SECTIONS {
-    /* _pmem_start and _entry_offset are defined in LDFLAGS */
-    /* Adjust the location counter if required. */
-
-    /* .text section located in flash for code */
     . = ORIGIN(flash);
+    .ftext : {
+        *(entry)
+        *(fsbl)
+    } > flash AT > flash
+
     .text : {
-        *(entry)            /* Entry point symbols */
-        *(.text*)           /* All text sections */
-    } > REGION_TEXT
-    
+        _etext_start = .;
+        *(.text*)
+        _etext_end = .;
+    } > sdram AT > flash
+    _load_etext_start = LOADADDR(.text);
     etext = .;
     _etext = .;
 
-    /* .rodata section located in flash for read-only data */
     .rodata : {
-        *(.rodata*)         /* All read-only data sections */
-        *(.srodata*)        /* All small read-only data sections */
-    } > REGION_RODATA
+        _rodata_start = .;
+        *(.rodata*)
+        *(.srodata*)
+        _rodata_end = .;
+    } > sdram AT > flash
+    _load_rodata_start = LOADADDR(.rodata);
 
-    /* .data section initialized in flash but loaded into psram */
     .data : {
         _data_start = .;
-        *(.data*)            /* All data sections */
-        *(.sdata*)           /* All small data sections */
+        *(.data*)
+        *(.sdata*)
         _data_end = .;
-    } > REGION_DATA AT > flash
-    _load_data_size = SIZEOF(.data);
+    } > sdram AT > flash
     _load_data_start = LOADADDR(.data);
-
-    /* Define the load address of the data section in flash */
     edata = .;
     _edata = .;
 
-    /* .bss section located in psram for uninitialized data */
     .bss : {
-        _bss_start = .;     /* Start of the BSS section */
-        *(.bss*)            /* All bss sections */
-        *(.sbss*)           /* All small bss sections */
-        *(.scommon)         /* All common symbols */
-        _bss_end = .;       /* End of the BSS section */
-    } > REGION_BSS
+        _bss_start = .;
+        *(.bss*)
+        *(.sbss*)
+        *(.scommon)
+        _bss_end = .;
+    } > sdram AT > sdram
 
-    end = .;                      /* End symbol */
+    .ssbl : {
+        _ssbl_start = .;
+        *(ssbl)
+    } > sdram AT > flash
+    _load_ssbl_size = SIZEOF(.ssbl);
+    _load_ssbl_start = LOADADDR(.ssbl);
+
+    end = .;
     _end = .;
-    
-    /* Define heap and stack */
-    . = 0x0f000000;     /* Heap start address */
-    _heap_start = .;  /* Align the heap start to 4KB boundary */
 
-    . = 0x0f002000;     /* Heap size of 0x2000 bytes (8KB total psram) */
-    _stack_pointer = .;           /* Set stack pointer */
-    
+    _heap_start = ORIGIN(psram);
+    . = 0x0f002000;
+    _stack_pointer = .;
+
 }

@@ -14,12 +14,14 @@ uint8_t *sram;
 uint8_t *mrom;
 uint8_t *flash;
 uint8_t *psram;
+uint8_t *sdram;
 
 uint8_t* guest_to_host(uint32_t paddr) { return sram + paddr - CONFIG_MBASE; }
 uint8_t* mrom_to_host(uint32_t paddr) { return mrom + paddr - CONFIG_MROM_BASE; }
 uint8_t* sram_to_host(uint32_t paddr) { return sram + paddr - CONFIG_SRAM_BASE; }
 uint8_t* flash_to_host(uint32_t paddr) { return flash + paddr; }
 uint8_t* psram_to_host(uint32_t paddr) { return psram + paddr; }
+uint8_t* sdram_to_host(uint32_t paddr) { return sdram + paddr; }
 
 long
 init_mem(char *path)
@@ -28,7 +30,9 @@ init_mem(char *path)
     sram = (uint8_t *)aligned_alloc(32, CONFIG_SRAM_SIZE);
     flash = (uint8_t *)aligned_alloc(32, CONFIG_FLASH_SIZE);
     psram = (uint8_t *)aligned_alloc(32, CONFIG_PSRAM_SIZE);
-    if (mrom == NULL || sram == NULL || flash == NULL || psram == NULL) {
+    sdram = (uint8_t *)aligned_alloc(32, CONFIG_SDRAM_SIZE);
+    if (mrom == NULL || sram == NULL || flash == NULL ||
+        psram == NULL || sdram == NULL) {
         Log("mem init fail, exit now\n");
         exit(1);
     }
@@ -62,12 +66,6 @@ init_mem(char *path)
 extern "C" int
 pmem_read(int raddr)
 {
-    if (raddr == 0xa0000048)
-        return  (int)(std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::system_clock::now().time_since_epoch()).count());
-    if (raddr == 0xa000004c)
-        return (int)(std::chrono::duration_cast<std::chrono::microseconds>(
-                        std::chrono::system_clock::now().time_since_epoch()).count() >> 32) ;
     uint32_t vaddr = (uint32_t)(raddr & ~0x3u);
     uint8_t *paddr = guest_to_host(vaddr);
 
@@ -81,10 +79,6 @@ pmem_read(int raddr)
 extern "C" void
 pmem_write(int waddr, int wdata, char wmask)
 {
-    if (waddr == 0xa00003f8) {
-        printf("axi lite arbitrator fault\n");
-        return;
-    }
     uint32_t vaddr = (uint32_t)(waddr & ~0x3u);
     uint8_t *paddr = guest_to_host(vaddr);
     uint32_t rdata = *(uint32_t *)paddr;
@@ -157,6 +151,7 @@ free() {
     free(sram);
     free(flash);
     free(psram);
+    free(sdram);
 }
 
 extern "C" void flash_read(int32_t addr, int32_t *data) {
@@ -205,4 +200,37 @@ extern "C" void psram_write(int32_t addr, int8_t data) {
         Log("psram_write: %08x %02x", addr, data);
     #endif // CONFIG_MTRACE
     *(int8_t *)paddr = data;
+}
+
+extern "C" void sdram_read(int32_t addr, int32_t *data) {
+    uint8_t *paddr;
+    paddr = sdram_to_host((uint32_t)addr);
+    *data = *(int32_t *)paddr & 0xffff;
+    #ifdef CONFIG_MTRACE
+        Log("sdram_read: addr: 0x%x data: 0x%x", addr, *data);
+    #endif // CONFIG_MTRACE
+}
+
+extern "C" void sdram_write(int32_t addr, uint8_t mask, int32_t data) {
+    uint8_t *paddr;
+    paddr = sdram_to_host((uint32_t)addr);
+    #ifdef CONFIG_MTRACE
+        Log("sdram_write: addr: 0x%x mask: 0x%x data: 0x%x", addr, mask, data);
+    #endif // CONFIG_MTRACE
+    switch (mask) {
+        case 0x02:
+            *(int16_t *)paddr = *(int16_t *)paddr & 0xff00 | (data & 0x00ff);
+            break;
+        case 0x01:
+            *(int16_t *)paddr = *(int16_t *)paddr & 0x00ff | (data & 0xff00);
+            break;
+        case 0x00:
+            *(int16_t *)paddr = data & 0xffff;
+            break;
+        case 0x03:
+            break;
+        default:
+            printf("sdram_write fault mask: %x\n", mask);
+            break;
+    }
 }

@@ -34,17 +34,19 @@ enum {
                           case 0x342: cpu.csr[MCAUSE] = src1; break; \
                           case 0x341: cpu.csr[MEPC] = src1; break; \
                           case 0x305: cpu.csr[MTVEC] = src1; break; \
-                          default: break; \
+                          default: ;break; \
                       } \
                     } while (0)
 #define CSRR() \
                  do { \
-                      switch (imm) { \
+                      switch (imm&0xfff) { \
                           case 0x300: t = cpu.csr[MSTATUS]; break; \
                           case 0x342: t = cpu.csr[MCAUSE]; break; \
                           case 0x341: t = cpu.csr[MEPC]; break; \
                           case 0x305: t = cpu.csr[MTVEC]; break; \
-                          default: t = 0; break; \
+                          case 0xf11: t = 0x78797379; break;  \
+                          case 0xf12: t = 0x150be98;  break;  \
+                          default: ; break; \
                       } \
                     } while(0)
 #define src1R() do { *src1 = R(rs1); } while (0)

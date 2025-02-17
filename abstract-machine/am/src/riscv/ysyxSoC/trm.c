@@ -4,6 +4,7 @@
 
 #define UART_BASE 0x10000000L
 #define UART_TX   0x00
+#define UART_RX   0x00
 #define UART_IER  0x01
 #define UART_FCR  0x02
 #define UART_LCR  0x03
@@ -11,7 +12,8 @@
 // divisor
 #define UART_MSB  0x01
 #define UART_LSB  0x00
-#define UART_PORT (UART_BASE + UART_TX)
+#define UART_OUTPUT_PORT (UART_BASE + UART_TX)
+#define UART_INPUT_PORT  (UART_BASE + UART_RX)
 
 #ifndef MAINARGS
 #define MAINARGS ""
@@ -19,10 +21,9 @@
 static const char mainargs[] = MAINARGS;
 int main(const char *args);
 
-#define _heap_start 0x80000000
-#define _heap_end   0x81ffffff
+#define _heap_end   (0x80000000+0x400000)
 
-// extern char _heap_start[], _heap_end[];
+extern char _heap_start[];
 Area heap = RANGE(_heap_start, _heap_end);
 void *addr = (void *)_heap_start;
 
@@ -49,7 +50,16 @@ static void _uart_init() {
 #define LSR_TX_IDLE (1<<5)    // THR can accept another character to send
 void putch(char ch) {
     while((*(volatile char *)(UART_BASE + UART_LSR) & LSR_TX_IDLE) == 0);
-    *(volatile char *)(UART_PORT) = ch;
+    *(volatile char *)(UART_OUTPUT_PORT) = ch;
+}
+#define LSR_RX_READY (1<<0)   // Receive data is ready
+uint8_t getch() {
+    if ((*(volatile uint8_t *)(UART_BASE + UART_LSR) & LSR_RX_READY) == 0) {
+        return 0xff;
+    } else {
+        uint8_t data = *(volatile uint8_t *)(UART_INPUT_PORT);
+        return data;
+    }
 }
 
 #define SPI_BASE	0x10001000
@@ -88,11 +98,50 @@ void halt(int code) {
     while (1);
 }
 
-static void bootloader() {
-    extern char _data_start[], _load_data_start[], _load_data_size[];
-    memcpy(_data_start, _load_data_start, (size_t)_load_data_size);
+void _ssbl();
+__attribute__((section("fsbl")))
+__attribute__((used))
+void _fsbl() {
+    extern char _ssbl_start[];
+    extern char _load_ssbl_size[], _load_ssbl_start[];
+    for (size_t i = 0; i < (size_t)_load_ssbl_size; i++) {
+        *(_ssbl_start+i) = *(_load_ssbl_start+i);
+    }
+    _ssbl();
 }
 
+// 放入 .ssbl 段
+void _trm_init();
+__attribute__((section("ssbl")))
+__attribute__((used))
+void _ssbl() {
+    extern char _data_start[], _etext_start[], _rodata_start[];
+    extern char _data_end[], _etext_end[], _rodata_end[];
+    extern char _data_extra_start[], _data_extra_end[];
+    extern char _load_data_start[];
+    extern char _load_etext_start[];
+    extern char _load_rodata_start[];
+    extern char _load_data_extra_start[];
+    const size_t _load_data_size = _data_end - _data_start;
+    const size_t _load_etext_size = _etext_end - _etext_start;
+    const size_t _load_rodata_size = _rodata_end - _rodata_start;
+    const size_t _load_data_extra_size = _data_extra_end - _data_extra_start;
+    for (size_t i = 0; i < _load_etext_size; i++) {
+        *(_etext_start+i) = *(_load_etext_start+i);
+    }
+    for (size_t i = 0; i < _load_rodata_size; i++) {
+        *(_rodata_start+i) = *(_load_rodata_start+i);
+    }
+    for (size_t i = 0; i < _load_data_size; i++) {
+        *(_data_start+i) = *(_load_data_start+i);
+    }
+    for (size_t i = 0; i < _load_data_extra_size; i++) {
+        *(_data_extra_start+i) = *(_load_data_extra_start+i);
+    }
+    _trm_init();
+}
+
+__attribute__((used))
 static void info() {
     uint32_t mvendorid, marchid;
     // 读取 mvendorid 寄存器（地址 0xF11）
@@ -108,16 +157,15 @@ static void info() {
     );
     printf("%s_%d\n", &mvendorid, marchid);
     asm volatile("sw %0, 0(%1)" : : "r"(marchid), "r"(0x10002008));
-    uint32_t pass = 0;
-    while (pass != 0x0f) {
-        asm volatile("lw %0, 0(%1)" : "=r"(pass) : "r"(0x10002004));
-    }
+    // uint32_t pass = 0;
+    // while (pass != 0x0f) {
+    //     asm volatile("lw %0, 0(%1)" : "=r"(pass) : "r"(0x10002004));
+    // }
     printf("welcome to my riscv npc!\n");
 }
 
 void _trm_init() {
     _uart_init();
-    bootloader();
     info();
     int ret = main(mainargs);
     halt(ret);

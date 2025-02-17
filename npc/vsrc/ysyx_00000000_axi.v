@@ -142,6 +142,24 @@ module ysyx_00000000_axi (
         .lsu_bready                 (lsu_bready)
     );
 
+    wire clint_arvlid;
+    wire clint_arready;
+    wire clint_rvalid;
+    wire clint_rready;
+    wire [31:0] clint_rdata;
+    clint clint_module (
+        .clk_i            (clock),
+        .rst_i            (reset),
+
+        .arvalid_i        (clint_arvlid),
+        .arready_o        (clint_arready),
+        .araddr_i         (raddr),
+
+        .rvalid_o         (clint_rvalid),
+        .rready_i         (clint_rready),
+        .rdata_o          (clint_rdata)
+    );
+
     localparam      IDLE        = 2'b00;
     localparam      HANDSHAKE   = 2'b01;
     localparam      WAIT        = 2'b10;
@@ -179,15 +197,21 @@ module ysyx_00000000_axi (
                     end
                 end
                 HANDSHAKE: begin
-                    if (io_master_arready) begin
+                    if (io_master_arready && !is_clint) begin
+                        rstate  <= WAIT;
+                    end else if (clint_arready && is_clint) begin
                         rstate  <= WAIT;
                     end
                 end
                 WAIT: begin
-                    if (io_master_rvalid) begin
+                    if (io_master_rvalid && !is_clint) begin
                         rstate  <= DONE;
                         rdata   <= io_master_rdata;
                         rresp   <= io_master_rresp;
+                    end else if (clint_rvalid && is_clint) begin
+                        rstate  <= DONE;
+                        rdata   <= clint_rdata;
+                        rresp   <= 2'b00;
                     end
                 end
                 DONE: begin
@@ -231,6 +255,10 @@ module ysyx_00000000_axi (
         end
     end
 
+    wire is_clint;
+    assign is_clint = raddr >= 32'h02000000 && raddr <= 32'h0200ffff;
+    assign clint_arvlid = rstate == HANDSHAKE && is_clint;
+    assign clint_rready = rstate == WAIT && is_clint;
     assign io_master_awvalid = wstate == HANDSHAKE;
     assign io_master_awaddr = waddr;
     assign io_master_awid = 4'b0000;
@@ -245,14 +273,14 @@ module ysyx_00000000_axi (
 
     assign io_master_bready = wstate == WAIT;
 
-    assign io_master_arvalid = rstate == HANDSHAKE;
+    assign io_master_arvalid = rstate == HANDSHAKE && !is_clint;
     assign io_master_araddr = raddr;
     assign io_master_arid = 4'b0000;
     assign io_master_arlen = 8'b00000000;
     assign io_master_arsize = rsize;
     assign io_master_arburst = 2'b00;
 
-    assign io_master_rready = rstate == WAIT;
+    assign io_master_rready = rstate == WAIT && !is_clint;
 
     assign io_slave_awready = 1'b0;
     assign io_slave_wready = 1'b0;
@@ -299,8 +327,8 @@ module ysyx_00000000_axi (
         import "DPI-C" function void difftest_skip_ref(input int is_skip);
         wire is_device_write;
         wire is_rtc_mmio;
-        assign is_device_write = exu_awaddr >= 32'h10000000 && exu_awaddr <= 32'h10000fff;
-        assign is_rtc_mmio = exu_araddr == 32'ha0000048 || exu_araddr == 32'ha000004c;
+        assign is_device_write = exu_awaddr >= 32'h10000000 && exu_awaddr <= 32'h10002fff;
+        assign is_rtc_mmio = exu_araddr == 32'h02000048 || exu_araddr == 32'h0200004c;
         always @(*) begin
             if (is_device_write || is_rtc_mmio) begin
                 // $display("write to device @ %h, data = %h", exu_awaddr, exu_wdata);

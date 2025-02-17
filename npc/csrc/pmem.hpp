@@ -8,9 +8,11 @@
 #define CONFIG_SRAM_SIZE     0x2000
 #define CONFIG_SRAM_BASE     0x0f000000
 #define CONFIG_FLASH_BASE    0x30000000
-#define CONFIG_FLASH_SIZE    0x04000000
+#define CONFIG_FLASH_SIZE    0x10000000
 #define CONFIG_PSRAM_BASE    0x80000000
-#define CONFIG_PSRAM_SIZE    0x02000000
+#define CONFIG_PSRAM_SIZE    0x00400000
+#define CONFIG_SDRAM_BASE    0xa0000000
+#define CONFIG_SDRAM_SIZE    0x02000000
 
 long init_mem(char *);
 void free();
@@ -27,4 +29,6 @@ extern "C" void flash_read(int32_t addr, int32_t *data);
 extern "C" void mrom_read(int32_t addr, int32_t *data);
 extern "C" void psram_read(int32_t addr, int32_t *data);
 extern "C" void psram_write(int32_t addr, int8_t data);
+extern "C" void sdram_read(int32_t addr, int32_t *data);
+extern "C" void sdram_write(int32_t addr, uint8_t mask, int32_t data);
 #endif // __PMEM_HPP__

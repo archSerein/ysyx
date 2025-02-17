@@ -1,14 +1,15 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <NDL.h>
 
 int main() {
-  struct timeval tv;
-  // struct timezone tz;
-  gettimeofday(&tv, NULL);
+  uint32_t ticks;
+  NDL_Init(0);
+  ticks = NDL_GetTicks();
   __uint64_t ms = 500;
   while (1) {
-    while ((tv.tv_sec * 1000 + tv.tv_usec / 1000) < ms) {
-      gettimeofday(&tv, NULL);
+    while (ticks < ms) {
+      ticks = NDL_GetTicks();
     }
     ms += 500;
     printf("Hello world!\n");

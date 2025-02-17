@@ -23,14 +23,44 @@ size_t serial_write(const void *buf, size_t offset, size_t len) {
 }
 
 size_t events_read(void *buf, size_t offset, size_t len) {
-  return 0;
+  char *ptr = (char *)buf;
+  size_t ret;
+  while(true) {
+    AM_INPUT_KEYBRD_T ev = io_read(AM_INPUT_KEYBRD);
+    if (ev.keycode != AM_KEY_NONE) {
+      // strcpy(ptr, keyname[ev.keycode]);
+      if (ev.keydown) {
+        sprintf(ptr, "kd %s", keyname[ev.keycode]);
+      } else {
+        sprintf(ptr, "ku %s", keyname[ev.keycode]);
+      }
+      ret = strlen(keyname[ev.keycode])+3;
+      break;
+    }
+  }
+  return ret;
 }
 
 size_t dispinfo_read(void *buf, size_t offset, size_t len) {
-  return 0;
+  AM_GPU_CONFIG_T cfg = io_read(AM_GPU_CONFIG);
+  sprintf(buf, "WIDTH : %d HEIGHT : %d", cfg.width, cfg.height);
+  return strlen(buf);
 }
 
+struct fb_info {
+  int w, h;
+  int x, y;
+  uint32_t *pixels;
+};
 size_t fb_write(const void *buf, size_t offset, size_t len) {
+  int x, y, w, h;
+  struct fb_info *info = (struct fb_info *)buf;
+  x = info->x;
+  y = info->y;
+  w = info->w;
+  h = info->h;
+  uint32_t *pixels = info->pixels;
+  io_write(AM_GPU_FBDRAW, x, y, pixels, w, h, true);
   return 0;
 }
 

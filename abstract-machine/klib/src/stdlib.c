@@ -39,6 +39,7 @@ void *malloc(size_t size) {
   // panic("Not implemented");
   
   if (addr + size >= heap.end) {
+    panic("Not Enough Memory");
     return NULL;
   }
 
@@ -52,6 +53,8 @@ void *malloc(size_t size) {
   return ret;
 
 #endif
+  
+  panic("Not implemented");
   return NULL;
 }
 

@@ -47,6 +47,8 @@ char *strcat(char *dst, const char *src) {
 
 int strcmp(const char *s1, const char *s2) {
   // panic("Not implemented");
+  if (s1 == NULL || s2 == NULL)
+    return -1;
   size_t i;
   for(i = 0; s1[i] != '\0' || s2[i] != '\0'; i++)
   {
