@@ -56,7 +56,7 @@ int main(int argc, char *argv[], char *env[]) {
     // nvboard
     nvboard_init_warp();
 
-    reset(100);
+    reset(1000);
 
     #ifdef CONFIG_DIFFTEST
         init_difftest(ref_so_file, size, 1234);

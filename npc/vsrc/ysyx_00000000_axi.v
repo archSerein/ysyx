@@ -269,7 +269,7 @@ module ysyx_00000000_axi (
     assign io_master_wvalid = wstate == HANDSHAKE;
     assign io_master_wdata = wdata;
     assign io_master_wstrb = wstrb;
-    assign io_master_wlast = 1'b0;
+    assign io_master_wlast = 1'b1;
 
     assign io_master_bready = wstate == WAIT;
 

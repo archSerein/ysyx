@@ -53,7 +53,7 @@ SECTIONS {
     .ssbl : {
         _ssbl_start = .;
         *(ssbl)
-    } > sdram AT > flash
+    } > sram AT > flash
     _load_ssbl_size = SIZEOF(.ssbl);
     _load_ssbl_start = LOADADDR(.ssbl);
 

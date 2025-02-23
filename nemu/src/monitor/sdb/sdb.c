@@ -18,6 +18,9 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include <memory/paddr.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 extern NEMUState nemu_state;
 static int is_batch_mode = false;
@@ -131,6 +134,33 @@ static int cmd_print(char *args)
 }
 #endif
 
+static int cmd_detach(char *args) {
+  isa_difftest_detach();
+  return 0;
+}
+
+static int cmd_attach(char *args) {
+  isa_difftest_attach();
+  return 0;
+}
+
+static int cmd_load(char *args) {
+  int fd = open(args, O_RDONLY);
+  assert(fd > 0);
+  assert(read(fd, &cpu, sizeof(cpu)) == sizeof(cpu));
+  assert(read(fd, guest_to_host(RESET_VECTOR), CONFIG_MSIZE) == CONFIG_MSIZE);
+  close(fd);
+  return 0;
+}
+static int cmd_save(char *args) {
+  int fd = open(args, O_WRONLY);
+  assert(fd > 0);
+  assert(write(fd, &cpu, sizeof(cpu)) == sizeof(cpu));
+  assert(write(fd, guest_to_host(RESET_VECTOR), CONFIG_MSIZE) == CONFIG_MSIZE);
+  close(fd);
+  return 0;
+}
+
 static struct {
   const char *name;
   const char *description;
@@ -148,6 +178,10 @@ static struct {
   #ifdef CONFIG_FTRACE
   {"print", "print the function stack", cmd_print},
   #endif
+  {"detach", "quit difftest mode", cmd_detach},
+  {"attach", "enter difftest mode", cmd_attach},
+  {"load", "restore nemu state", cmd_load},
+  {"save", "save nemu state", cmd_save},
 
   /* TODO: Add more commands */
 

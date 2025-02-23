@@ -12,7 +12,7 @@ void __am_gpu_fbdraw(AM_GPU_FBDRAW_T *);
 
 static void __am_timer_config(AM_TIMER_CONFIG_T *cfg) { cfg->present = true; cfg->has_rtc = true; }
 static void __am_input_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = true;  }
-static void __am_uart_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = false;  }
+static void __am_uart_config(AM_INPUT_CONFIG_T *cfg) { cfg->present = true;  }
 static void __am_gpu_config(AM_GPU_CONFIG_T *cfg) { 
   *cfg = (AM_GPU_CONFIG_T) {
     .present = true, .has_accel = false,
@@ -96,7 +96,6 @@ void __am_input_keybrd(AM_INPUT_KEYBRD_T *kbd) {
 }
 
 void __am_uart_getchar(AM_UART_RX_T *rx) {
-  extern uint8_t getch();
   rx->data = getch();
 }
   
