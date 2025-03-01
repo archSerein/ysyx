@@ -44,15 +44,10 @@ module ysyx_00000000_core (
     wire                             ifu_valid;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
-    wire                             clk_i;
-    wire                             rst_i;
-
-    assign clk_i = clock;
-    assign rst_i = reset;
 
     ifu ifu_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .wbu_finish_i   (wbu_finish),
         .wbu_ifu_bus_i  (wbu_ifu_bus),
         // csr register
@@ -79,8 +74,8 @@ module ysyx_00000000_core (
     wire bdu_valid;
 
     bdu bdu_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .ifu_valid_i    (ifu_valid),
         .ifu_bdu_bus_i  (ifu_bdu_bus),
         
@@ -108,8 +103,8 @@ module ysyx_00000000_core (
     wire adu_valid;
 
     adu adu_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .bdu_valid_i    (bdu_valid),
         .bdu_adu_bus_i  (bdu_adu_bus),
         .adu_exu_bus_o  (adu_exu_bus),
@@ -120,8 +115,8 @@ module ysyx_00000000_core (
     wire exu_valid;
 
     exu exu_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .adu_valid_i    (adu_valid),
         .adu_exu_bus_i  (adu_exu_bus),
 
@@ -146,8 +141,8 @@ module ysyx_00000000_core (
     wire lsu_valid;
 
     lsu lsu_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .exu_valid_i    (exu_valid),
         .exu_lsu_bus_i  (exu_lsu_bus),
 
@@ -172,8 +167,8 @@ module ysyx_00000000_core (
     wire csr_we;
 
     wbu wbu_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .lsu_valid_i    (lsu_valid),
         .lsu_wbu_bus_i  (lsu_wbu_bus),
         // register file
@@ -191,8 +186,8 @@ module ysyx_00000000_core (
 
     // regfile
     regfile rf_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .reg_src1_i     (rs1),
         .reg_src2_i     (rs2),
         .reg_dst_i      (rd),
@@ -204,8 +199,8 @@ module ysyx_00000000_core (
 
     // csr register
     csr csr_module (
-        .clk_i          (clk_i),
-        .rst_i          (rst_i),
+        .clock          (clock),
+        .reset          (reset),
         .csr_we_i       (csr_we),
         .csr_raddr_i    (csr_raddr),
         .csr_waddr_i    (csr_waddr),

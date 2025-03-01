@@ -17,6 +17,18 @@ static TOP_NAME top;
 
 uint32_t register_file[37];
 int e = 0;
+int64_t inst_cnt = 0;
+int64_t cycle_cnt = 0;
+int64_t ifu_inst_cnt = 0;
+int64_t lsu_load_cnt = 0;
+int64_t exu_alu_cnt = 0;
+int64_t cal_inst_cnt = 0;
+int64_t mem_inst_cnt = 0;
+int64_t csr_inst_cnt = 0;
+int64_t br_inst_cnt = 0;
+int64_t jump_inst_cnt = 0;
+int64_t default_inst_cnt = 0;
+int64_t mem_cycle_cnt = 0;
 
 extern "C" void ending(int num) { e = num; }
 extern "C" void putch(int ch) { putchar(ch); }
@@ -31,7 +43,7 @@ void open_trace_wave(uint32_t pc) {
     }
 }
 void close_trace_wave(uint32_t pc) {
-    // if (is_open_trace_wave && (pc < 0xa0000000 || pc > 0xa2000000)) {
+    // if (is_open_trace_wave && ()) {
     //     is_open_trace_wave = false;
     //     Log("close trace wave");
     // }
@@ -99,6 +111,27 @@ sim_exit(){
     #ifdef CONFIG_TRACE_WAVE
         tfp->close();
     #endif // CONFIG_TRACE_WAVE
+    #ifdef CONFIG_TRACE_PERFORMANCE
+        char path[] = "/home/serein/ysyx/ysyx-workbench/npc/performance.txt";
+        FILE *fp = fopen(path, "w");
+        if (fp == NULL) {
+            Log("open file performance.txt failed");
+            return;
+        }
+        fprintf(fp, "Cycle: %ld Instructions: %ld, IPC: %.04f", cycle_cnt, inst_cnt, (double)inst_cnt / cycle_cnt);
+        fprintf(fp, "IFU Instructions: %ld, LSU Load/Store Instructions: %ld, EXU ALU Instructions: %ld", ifu_inst_cnt, lsu_load_cnt, exu_alu_cnt);
+        fprintf(fp, "CAL Instructions: %ld, MEM Instructions: %ld, CSR Instructions: %ld, BR Instructions: %ld, JUMP Instructions: %ld, DEFAULT Instructions: %ld", cal_inst_cnt, mem_inst_cnt, csr_inst_cnt, br_inst_cnt, jump_inst_cnt, default_inst_cnt);
+        float total_inst = (double)inst_cnt;
+        fprintf(fp, "CAL Instructions Ratio: %.04f", cal_inst_cnt / total_inst);
+        fprintf(fp, "MEM Instructions Ratio: %.04f", mem_inst_cnt / total_inst);
+        fprintf(fp, "CSR Instructions Ratio: %.04f", csr_inst_cnt / total_inst);
+        fprintf(fp, "BR Instructions Ratio: %.04f", br_inst_cnt / total_inst);
+        fprintf(fp, "JUMP Instructions Ratio: %.04f", jump_inst_cnt / total_inst);
+        fprintf(fp, "DEFAULT Instructions Ratio: %.04f", default_inst_cnt / total_inst);
+        fprintf(fp, "Memory Access Cycle: %ld, average memory access cycle: %.04f", mem_cycle_cnt, (double)mem_cycle_cnt / lsu_load_cnt);
+        fprintf(fp, "综合面积: 34860.098000um^2, 频率: 500MHz");
+        fclose(fp);
+    #endif // CONFIG_TRACE_PERFORMANCE
 }
 
 #ifdef CONFIG_TRACE_WAVE
@@ -198,4 +231,50 @@ void nvboard_bind_all_pins(TOP_NAME *top);
 void nvboard_init_warp() {
     nvboard_bind_all_pins(&top);
     nvboard_init();
+}
+
+extern "C" void inst_count(void) {
+    ++inst_cnt;
+}
+
+extern "C" void ifu_inst_count() {
+    ++ifu_inst_cnt;
+}
+
+extern "C" void inst_type_count(uint8_t type) {
+    switch (type) {
+        case 0:
+            ++cal_inst_cnt;
+            break;
+        case 1:
+            ++mem_inst_cnt;
+            break;
+        case 2:
+            ++csr_inst_cnt;
+            break;
+        case 3:
+            ++br_inst_cnt;
+            break;
+        case 4:
+            ++jump_inst_cnt;
+            break;
+        default:
+            ++default_inst_cnt;
+            break;
+    }
+}
+
+extern "C" void lsu_load_store_count(void) {
+    ++lsu_load_cnt;
+}
+
+extern "C" void exu_alu_count(void) {
+    ++exu_alu_cnt;
+}
+
+extern "C" void mem_cycle_count(void) {
+    ++mem_cycle_cnt;
+}
+void cycle_count(void) {
+    ++cycle_cnt;
 }

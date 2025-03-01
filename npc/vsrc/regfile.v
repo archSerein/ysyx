@@ -1,6 +1,6 @@
 module regfile (
-    input clk_i,
-    input rst_i,
+    input clock,
+    input reset,
     input [4:0] reg_src1_i,
     input [4:0] reg_src2_i,
     input [4:0] reg_dst_i,
@@ -16,9 +16,9 @@ module regfile (
 
     // write
     // 在 write back 阶段写入
-    always @(posedge clk_i)
+    always @(posedge clock)
     begin
-        if (rst_i) begin
+        if (reset) begin
             for (int i = 0; i < 32; i = i + 1) begin
                 regfile[i] <= 32'b0;
             end

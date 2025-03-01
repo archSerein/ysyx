@@ -48,6 +48,8 @@ void    difftest_step(vaddr_t pc);
 // npc.cpp
 extern "C" void is_difftest(char);
 bool            is_difftest_cycle();
+extern "C" void inst_count(void);
+void            cycle_count(void);
 
 extern "C" void putch(int ch);
 

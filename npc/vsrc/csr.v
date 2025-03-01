@@ -1,8 +1,8 @@
 `include "csr.vh"
 
  module csr (
-    input                           clk_i,
-    input                           rst_i,
+    input                           clock,
+    input                           reset,
     input                           csr_we_i,
     input  [`CSR_ADDR_WIDTH-1:0]    csr_waddr_i,
     input  [`CSR_ADDR_WIDTH-1:0]    csr_raddr_i,
@@ -31,8 +31,8 @@
     assign csr_mtvec_we = csr_we_i && (csr_waddr_i == `CSR_ADDR_MTVEC);
     assign csr_mepc_we = csr_we_i && (csr_waddr_i == `CSR_ADDR_MEPC);
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             MCAUSE <= 0;
         end
         else if (csr_mcause_we) begin
@@ -40,8 +40,8 @@
         end
     end
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             MSTATUS <= 0;
         end
         else if (csr_mstatus_we) begin
@@ -49,8 +49,8 @@
         end
     end
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             MTVEC <= 0;
         end
         else if (csr_mtvec_we) begin
@@ -58,8 +58,8 @@
         end
     end
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             MEPC <= 0;
         end
         else if (csr_mepc_we) begin
@@ -67,14 +67,14 @@
         end
     end
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             MVENDORID <= 32'h78797379;
         end
     end
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             MARCHID <= 32'h150be98;
         end
     end

@@ -76,13 +76,19 @@ run: $(BIN)
 gdb: $(BIN)
 	@$^ $(IMG) $(BIN_PATH)
 
+perf:
+	git add performance-table.log
+	git commit -m"update performance-table"
+	git push -u origin performance-tracer
+	@echo "update success"
+
 all:
 	@echo "Write this Makefile by your self."
 
 clean:
 	rm -rf $(BUILD_DIR) *.vcd
 
-.PHONY: clean run all
+.PHONY: clean run all perf
 
 include ../Makefile
 include $(NPC_HOME)/scripts/config.mk

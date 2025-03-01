@@ -148,8 +148,8 @@ module ysyx_00000000_axi (
     wire clint_rready;
     wire [31:0] clint_rdata;
     clint clint_module (
-        .clk_i            (clock),
-        .rst_i            (reset),
+        .clock            (clock),
+        .reset            (reset),
 
         .arvalid_i        (clint_arvlid),
         .arready_o        (clint_arready),
@@ -181,6 +181,21 @@ module ysyx_00000000_axi (
     reg [31:0]        wdata;
     reg [ 3:0]        wstrb;
     reg [ 1:0]        bresp;
+
+    // wire [1:0]        next_rstate;
+    // wire [1:0]        next_wstate;
+    // wire [1:0]        idle_next_rstate;
+    // wire [1:0]        idle_next_wstate;
+    // wire [1:0]        handshake_next_rstate;
+    // wire [1:0]        handshake_next_wstate;
+    // wire [1:0]        wait_next_rstate;
+    // wire [1:0]        wait_next_wstate;
+    // wire [1:0]        done_next_rstate;
+    // wire [1:0]        done_next_wstate;
+
+    // assign idle_next_rstate = (ifu_arvalid || exu_arvalid) ? HANDSHAKE : IDLE;
+    // assign idle_next_wstate = exu_awvalid ? HANDSHAKE : IDLE;
+    // assign handshake_next_rstate = io_master_arready
 
     always @(posedge clock) begin
         if (reset) begin

@@ -3,8 +3,8 @@
 `include "csr.vh"
 
 module ifu (
-    input                               clk_i,
-    input                               rst_i,
+    input                               clock,
+    input                               reset,
     input                               wbu_finish_i,
     input  [`WBU_IFU_BUS_WIDTH-1:0]     wbu_ifu_bus_i,     // 从 wbu 模块获取的数据, 分支或者异常
 
@@ -58,16 +58,16 @@ module ifu (
     reg  rreq;
     reg  started;
 
-    always @ (posedge clk_i) begin
-        if (rst_i) begin
+    always @ (posedge clock) begin
+        if (reset) begin
             started <= 1'b0;
         end else begin
             started <= 1'b1;
         end
     end
 
-    always @ (posedge clk_i) begin
-        if (rst_i) begin
+    always @ (posedge clock) begin
+        if (reset) begin
             // 复位期间不发送取指请求
             // 传递的数据无效
             valid <= 1'b0;
@@ -89,8 +89,8 @@ module ifu (
     `ifdef CONFIG_DIFFTEST
         import "DPI-C" function void is_difftest(input byte difftest);
         reg [ 7:0] difftest;
-        always @(posedge clk_i) begin
-            if (rst_i) begin
+        always @(posedge clock) begin
+            if (reset) begin
                 difftest <= 8'b0;
             end else if (started && wbu_finish_i) begin
                 difftest <= 8'b1;
@@ -100,6 +100,12 @@ module ifu (
             is_difftest(difftest);
         end
     `endif
+    import "DPI-C" function void inst_count();
+    always @*
+    begin
+        if (started && wbu_finish_i)
+            inst_count();
+    end            
 
     // 握手信号
     assign araddr_o = ifu_pc;

@@ -1,7 +1,7 @@
 `include "riscv_param.vh"
 module lsu (
-    input                               clk_i,
-    input                               rst_i,
+    input                               clock,
+    input                               reset,
     input                               exu_valid_i,
     input  [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_i,
     // memfile
@@ -104,7 +104,7 @@ module lsu (
                              {32{!ms_res_from_mem && !ms_res_from_csr &
                                     !res_from_compare & !ms_jmp_flag}} & ms_alu_result;
 
-    always @(posedge clk_i) begin
+    always @(posedge clock) begin
         if (exu_valid_i) begin
             exu_lsu_bus <= exu_lsu_bus_i;
         end
@@ -116,8 +116,10 @@ module lsu (
     localparam [ 1:0] FINISH    = 2'b11;
     reg        [ 1:0] state;
     reg        [31:0] rdata_r;
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    import "DPI-C" function void lsu_load_store_count();
+    import "DPI-C" function void mem_cycle_count();
+    always @(posedge clock) begin
+        if (reset) begin
             state <= IDLE;
             valid <= 1'b0;
         end else begin
@@ -125,9 +127,11 @@ module lsu (
                 IDLE: begin
                     if (exu_valid_i) begin
                         state <= HANDLE;
+                        mem_cycle_count();
                     end
                 end
                 HANDLE: begin
+                    mem_cycle_count();
                     if (|ms_mem_re || ms_mem_we) begin
                         state <= WAIT;
                     end
@@ -137,6 +141,7 @@ module lsu (
                     end
                 end
                 WAIT: begin
+                    mem_cycle_count();
                     if (bvalid_i || rvalid_i) begin
                         state <= FINISH;
                         valid <= 1'b1;
@@ -146,9 +151,11 @@ module lsu (
                             $display("fault response from memory");
                             $finish;
                         end
+                        lsu_load_store_count();
                     end
                 end
                 FINISH: begin
+                    mem_cycle_count();
                     valid <= 1'b0;
                     state <= IDLE;
                 end

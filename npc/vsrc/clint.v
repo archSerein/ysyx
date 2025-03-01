@@ -1,6 +1,6 @@
 module clint (
-    input                   clk_i,
-    input                   rst_i,
+    input                   clock,
+    input                   reset,
 
     input                   arvalid_i,
     output                  arready_o,
@@ -14,8 +14,8 @@ module clint (
     // high: 0xa000004c
     // low:  0xa0000048
     reg     [63:0]          mtime;
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             mtime <= 0;
         end else begin
             mtime <= mtime + 1;
@@ -24,7 +24,7 @@ module clint (
 
     reg        valid;
     reg        [31:0]       rdata;
-    always @(posedge clk_i) begin
+    always @(posedge clock) begin
         if (arvalid_i) begin
             valid <= 1'b1;
             if (araddr_i == 32'h02000048) begin
@@ -40,4 +40,4 @@ module clint (
     assign rdata_o     = rdata;
     assign arready_o   = !valid;
     assign rvalid_o    = valid;
-endmodule;
+endmodule

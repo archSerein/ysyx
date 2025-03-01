@@ -1,8 +1,8 @@
 `include "riscv_param.vh"
 
 module adu (
-    input                           clk_i,
-    input                           rst_i,
+    input                           clock,
+    input                           reset,
     input                           bdu_valid_i,
     input  [`BDU_ADU_BUS_WIDTH-1:0] bdu_adu_bus_i,
     output [`ADU_EXU_BUS_WIDTH-1:0] adu_exu_bus_o,
@@ -50,8 +50,8 @@ module adu (
         adu_funct7
     } = bdu_adu_bus;
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             valid <= 1'b0;
             bdu_adu_bus <= 0;
         end else if (bdu_valid_i) begin
@@ -269,4 +269,34 @@ module adu (
         32 + 32 = 233*/
 
     assign valid_o = valid;
+    wire is_cal_inst;
+    wire is_mem_inst;
+    wire is_csr_inst;
+    wire is_jump_inst;
+    wire is_default_inst;
+    assign is_cal_inst = inst_lui | inst_auipc | inst_addi | inst_xori | inst_ori | inst_andi |
+                        inst_slli | inst_srli | inst_srai | inst_add | inst_sub | inst_sll |
+                        inst_xor | inst_srl | inst_sra | inst_or | inst_and;
+    assign is_mem_inst = inst_lb | inst_lh | inst_lw | inst_lbu | inst_lhu | inst_sb | inst_sh |
+                        inst_sw;
+    assign is_csr_inst = inst_csrrw | inst_csrrs;
+    assign is_jump_inst = inst_jal | inst_jalr;
+    assign is_default_inst = inst_ecall | inst_mret | inst_ebreak;
+    import "DPI-C" function void inst_type_count(input byte mask);
+    always @*
+    begin
+        if (valid) begin
+            if (is_cal_inst) begin
+                inst_type_count(0);
+            end else if (is_mem_inst) begin
+                inst_type_count(1);
+            end else if (is_csr_inst) begin
+                inst_type_count(2);
+            end else if (is_jump_inst) begin
+                inst_type_count(4);
+            end else if (is_default_inst) begin
+                inst_type_count(6);
+            end
+        end
+    end
 endmodule

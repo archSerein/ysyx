@@ -1,8 +1,8 @@
 `include "riscv_param.vh"
 
 module exu (
-    input                               clk_i,
-    input                               rst_i,
+    input                               clock,
+    input                               reset,
     input                               adu_valid_i,
     input  [`ADU_EXU_BUS_WIDTH-1:0]     adu_exu_bus_i,
     // memfile
@@ -149,8 +149,8 @@ module exu (
     };
     /*32 + 1 + 1 + 32 + 1 + 2 + 4 + 1 + 12 + 32 + 32 + 1 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 = 194*/
     wire    idle;
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             valid <= 1'b0;
         end else if (adu_valid_i) begin
             valid <= 1'b1;
@@ -184,6 +184,13 @@ module exu (
 
     // 没有访存请求或者握手成功时, 有效数据会直接向下传递, 同时将 valid 置为 0,
     // 表示后续的数据并不是有效的
-    assign idle = !(arvalid_o || awvalid_o || wvalid_o) || (arvalid_o && arready_i) || (awvalid_o && awready_i) || (wvalid_o && wready_i);
+    assign idle = !(arvalid_o || awvalid_o || wvalid_o) || (arvalid_o && arready_i) || (awvalid_o && awready_i && wvalid_o && wready_i);
     assign valid_o = valid;
+
+    import "DPI-C" function void exu_alu_count();
+    always @*
+    begin
+        if (!ex_res_from_csr && !ex_res_from_mem && !res_from_compare && !ex_jmp_flag && valid)
+            exu_alu_count();
+    end
 endmodule

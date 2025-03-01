@@ -1,7 +1,7 @@
 `include "riscv_param.vh"
 module bdu (
-    input                           clk_i,
-    input                           rst_i,
+    input                           clock,
+    input                           reset,
     input                           ifu_valid_i,
     input  [`IFU_BDU_BUS_WIDTH-1:0] ifu_bdu_bus_i,
     // regfile
@@ -36,17 +36,20 @@ module bdu (
 
     assign {bdu_pc, bdu_snpc} = ifu_bdu_bus;
 
-    always @(posedge clk_i) begin
+    always @(posedge clock) begin
         if (ifu_valid_i) begin
             ifu_bdu_bus <= ifu_bdu_bus_i;
         end
     end
 
+    import "DPI-C" function void ifu_inst_count();
+    wire is_br_inst;
+    wire is_set_inst;
     // axi read data channel
     reg  [31:0] bdu_inst_r;
     reg rready;
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             rready <= 1'b1;
             valid <= 1'b0;
         end else if (rvalid_i && rready) begin
@@ -55,6 +58,7 @@ module bdu (
             if (rresp_i == INST_OK || rresp_i == INST_EXOKAY) begin
                 bdu_inst_r <= rdata_i;
                 valid <= 1'b1;
+                ifu_inst_count();
                 // $display("bdu_pc: %h bdu_inst: %h", bdu_pc, rdata_i);
             end else begin
                 $display("mem response error: %h", rresp_i);
@@ -139,6 +143,8 @@ module bdu (
     assign inst_sltu   = bdu_opcode == 7'b0110011 && bdu_funct3 == 3'b011 &&
                             bdu_funct7 == 7'b0000000;
 
+    assign is_br_inst = inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu;
+    assign is_set_inst = inst_slti | inst_sltiu | inst_slt | inst_sltu;
     wire [2:0] bdu_compare_fn;
     assign bdu_compare_fn = {3{inst_beq}} & 3'b000 |
                             {3{inst_bne}} & 3'b001 |
@@ -196,4 +202,15 @@ module bdu (
     assign bdu_csr_addr_o = bdu_csr_addr;
     assign valid_o = valid;
 
+    import "DPI-C" function void inst_type_count(input byte mask);
+    always @*
+    begin
+        if (valid) begin
+            if (is_br_inst) begin
+                inst_type_count(3);
+            end else if (is_set_inst) begin
+                inst_type_count(6);
+            end
+        end
+    end
 endmodule

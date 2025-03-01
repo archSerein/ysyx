@@ -1,8 +1,8 @@
 `include "riscv_param.vh"
 
 module wbu (
-    input                           clk_i,
-    input                           rst_i,
+    input                           clock,
+    input                           reset,
     input                           lsu_valid_i,
     input  [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus_i,
     // register file
@@ -54,8 +54,8 @@ module wbu (
     assign csr_wdata_o = wbu_csr_wdata;
     assign finish_o = finish;
 
-    always @(posedge clk_i) begin
-        if (rst_i) begin
+    always @(posedge clock) begin
+        if (reset) begin
             finish <= 1'b1;
             lsu_wbu_bus <= 0;
         end else if (lsu_valid_i) begin
