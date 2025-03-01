@@ -79,14 +79,11 @@ gdb: $(BIN)
 	@$^ $(IMG) $(BIN_PATH)
 
 perf:
-	python3 data_processing.py
 	git checkout pa4 -- performance-data.txt
-	git checkout performance-tracer
 	git pull origin performance-tracer
 	git add performance-data.txt
 	git commit -m"update performance-table"
 	git push origin performance-tracer
-	git checkout pa4
 	@echo "update success"
 
 all:
