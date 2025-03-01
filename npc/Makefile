@@ -78,12 +78,15 @@ run: $(BIN)
 gdb: $(BIN)
 	@$^ $(IMG) $(BIN_PATH)
 
+DATA_DIR = ./performance
+FILE_ID := $(shell expr $(shell ls -1 $(DATA_DIR) 2>/dev/null | wc -l) + 1)
+
 perf:
-	git checkout pa4 -- performance-data.txt
-	git pull origin performance-tracer
-	git add performance-data.txt
+	python3 data_processing.py
+	@cp ./performance-data.txt ./performance/performance-data-$(FILE_ID).txt
+	git add ./performance/*
 	git commit -m"update performance-table"
-	git push origin performance-tracer
+	git push origin
 	@echo "update success"
 
 all:
