@@ -10,5 +10,6 @@
 !*.hpp
 !.gitignore
 !README.md
+!*.txt
 build/
 include/
