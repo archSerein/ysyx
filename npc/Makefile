@@ -5,6 +5,7 @@ INC_PATH ?= $(NPC_HOME)/include
 ALL ?=
 IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.bin
 ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.elf
+ISA ?=
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --trace --Wno-DECLFILENAME \
@@ -70,6 +71,7 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 
 run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
+	@echo $(ISA)
 	@$^ $(IMG) -b
 	@echo "all done"
 
@@ -77,7 +79,8 @@ gdb: $(BIN)
 	@$^ $(IMG) $(BIN_PATH)
 
 perf:
-	git add performance-table.log
+	python3 data_processing.py
+	git add performance-data.txt
 	git commit -m"update performance-table"
 	git push -u origin performance-tracer
 	@echo "update success"
