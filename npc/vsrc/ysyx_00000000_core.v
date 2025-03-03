@@ -5,14 +5,14 @@ module ysyx_00000000_core (
     input                       clock,
     input                       reset,
 
-    input                       ifu_arready,
-    output                      ifu_arvalid,
-    output [31:0]               ifu_araddr,
+    input                       icache_arready,
+    output                      icache_arvalid,
+    output [31:0]               icache_araddr,
 
-    output                      bdu_rready,
-    input                       bdu_rvalid,
-    input [31:0]                bdu_rdata,
-    input [ 1:0]                bdu_rresp,
+    output                      icache_rready,
+    input                       icache_rvalid,
+    input [31:0]                icache_rdata,
+    input [ 1:0]                icache_rresp,
 
     input                       exu_arready,
     output                      exu_arvalid,
@@ -45,6 +45,9 @@ module ysyx_00000000_core (
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
 
+    wire                             arvalid;
+    wire [31:0]                      araddr;
+    wire                             arready;
     ifu ifu_module (
         .clock          (clock),
         .reset          (reset),
@@ -54,12 +57,34 @@ module ysyx_00000000_core (
         .csr_mtvec      (csr_mtvec),
         .csr_mepc       (csr_mepc),
         .ifu_bdu_bus_o  (ifu_bdu_bus),
-        // axi read addr channel
-        .araddr_o       (ifu_araddr),
-        .arvalid_o      (ifu_arvalid),
-        .arready_i      (ifu_arready),
+
+        .araddr_o       (araddr),
+        .arvalid_o      (arvalid),
+        .arready_i      (arready),
 
         .valid_o        (ifu_valid)
+    );
+
+    wire [31:0]                      rdata;
+    wire                             rvalid;
+    icache icache_module (
+      .clock            (clock),
+      .reset            (reset),
+      .rreq_i           (arvalid),
+      .raddr_i          (araddr),
+      .rready_o         (arready),
+
+      .rdata_o          (rdata),
+      .rvalid_o         (rvalid),
+
+      .icache_arready_i (icache_arready),
+      .icache_arvalid_o (icache_arvalid),
+      .icache_araddr_o  (icache_araddr),
+
+      .icache_rvalid_i  (icache_rvalid),
+      .icache_rdata_i   (icache_rdata),
+      .icache_rresp_i   (icache_rresp),
+      .icache_rready_o  (icache_rready)
     );
 
     wire [ 4:0] rs1;
@@ -89,11 +114,8 @@ module ysyx_00000000_core (
         .bdu_csr_addr_o (csr_raddr),
         .bdu_csr_value_i(csr_value),
 
-        // axi read data channel
-        .rdata_i        (bdu_rdata),
-        .rvalid_i       (bdu_rvalid),
-        .rready_o       (bdu_rready),
-        .rresp_i        (bdu_rresp),
+        .rdata_i        (rdata),
+        .rvalid_i       (rvalid),
 
         .bdu_adu_bus_o  (bdu_adu_bus),
         .valid_o        (bdu_valid)

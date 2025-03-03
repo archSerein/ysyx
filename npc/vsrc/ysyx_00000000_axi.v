@@ -73,14 +73,14 @@ module ysyx_00000000_axi (
     output [ 3:0]                   io_slave_rid
 );
 
-    wire                      ifu_arvalid;
-    wire      [31:0]          ifu_araddr;
-    wire                      ifu_arready;
+    wire                      icache_arvalid;
+    wire      [31:0]          icache_araddr;
+    wire                      icache_arready;
 
-    wire                      bdu_rready;
-    wire                      bdu_rvalid;
-    wire      [31:0]          bdu_rdata;
-    wire      [ 1:0]          bdu_rresp;
+    wire                      icache_rready;
+    wire                      icache_rvalid;
+    wire      [31:0]          icache_rdata;
+    wire      [ 1:0]          icache_rresp;
 
     wire                      exu_arvalid;
     wire      [ 2:0]          exu_arsize;
@@ -109,14 +109,14 @@ module ysyx_00000000_axi (
         .clock                      (clock),
         .reset                      (reset),
 
-        .ifu_arvalid                (ifu_arvalid),
-        .ifu_araddr                 (ifu_araddr),
-        .ifu_arready                (ifu_arready),
+        .icache_arvalid             (icache_arvalid),
+        .icache_araddr              (icache_araddr),
+        .icache_arready             (icache_arready),
 
-        .bdu_rready                 (bdu_rready),
-        .bdu_rvalid                 (bdu_rvalid),
-        .bdu_rdata                  (bdu_rdata),
-        .bdu_rresp                  (bdu_rresp),
+        .icache_rready              (icache_rready),
+        .icache_rvalid              (icache_rvalid),
+        .icache_rdata               (icache_rdata),
+        .icache_rresp               (icache_rresp),
 
         .exu_arvalid                (exu_arvalid),
         .exu_araddr                 (exu_araddr),
@@ -193,7 +193,7 @@ module ysyx_00000000_axi (
     // wire [1:0]        done_next_rstate;
     // wire [1:0]        done_next_wstate;
 
-    // assign idle_next_rstate = (ifu_arvalid || exu_arvalid) ? HANDSHAKE : IDLE;
+    // assign idle_next_rstate = (icache_arvalid || exu_arvalid) ? HANDSHAKE : IDLE;
     // assign idle_next_wstate = exu_awvalid ? HANDSHAKE : IDLE;
     // assign handshake_next_rstate = io_master_arready
 
@@ -204,11 +204,11 @@ module ysyx_00000000_axi (
         end else begin
             case (rstate)
                 IDLE: begin
-                    if (ifu_arvalid || exu_arvalid) begin
+                    if (icache_arvalid || exu_arvalid) begin
                         rstate  <= HANDSHAKE;
-                        raddr   <= ifu_arvalid ? ifu_araddr : exu_araddr;
-                        inst_or_data <= ifu_arvalid ? INST : DATA;
-                        rsize  <= ifu_arvalid ? 3'b010 : exu_arsize;
+                        raddr   <= icache_arvalid ? icache_araddr : exu_araddr;
+                        inst_or_data <= icache_arvalid ? INST : DATA;
+                        rsize  <= icache_arvalid ? 3'b010 : exu_arsize;
                     end
                 end
                 HANDSHAKE: begin
@@ -230,7 +230,7 @@ module ysyx_00000000_axi (
                     end
                 end
                 DONE: begin
-                    if (bdu_rready || lsu_rready) begin
+                    if (icache_rready || lsu_rready) begin
                         rstate  <= IDLE;
                         `ifdef CONFIG_RTL_MTRACE
                             $display("read: addr = %h, data = %h, resp = %b", raddr, rdata, rresp);
@@ -303,11 +303,11 @@ module ysyx_00000000_axi (
     assign io_slave_arready = 1'b0;
     assign io_slave_rvalid = 1'b0;
 
-    assign ifu_arready = rstate == IDLE;
+    assign icache_arready = rstate == IDLE;
 
-    assign bdu_rvalid = rstate == DONE && inst_or_data == INST;
-    assign bdu_rdata = rdata;
-    assign bdu_rresp = rresp;
+    assign icache_rvalid = rstate == DONE && inst_or_data == INST;
+    assign icache_rdata = rdata;
+    assign icache_rresp = rresp;
 
     assign exu_arready = rstate == IDLE;
 

@@ -13,20 +13,13 @@ module bdu (
     // csr register
     output [11:0]                   bdu_csr_addr_o,
     input  [31:0]                   bdu_csr_value_i,
-    // axi read data channel
+
     input  [31:0]                   rdata_i,
     input                           rvalid_i,
-    input  [ 1:0]                   rresp_i,
-    output                          rready_o,
 
     output [`BDU_ADU_BUS_WIDTH-1:0] bdu_adu_bus_o,
     output                          valid_o
 );
-
-    localparam INST_OK      = 2'b00;
-    localparam INST_EXOKAY  = 2'b01;
-    // localparam INST_SLVERR  = 2'b10;
-    // localparam INST_DECERR  = 2'b11;
 
     reg                             valid;
     reg [`IFU_BDU_BUS_WIDTH-1:0]    ifu_bdu_bus;
