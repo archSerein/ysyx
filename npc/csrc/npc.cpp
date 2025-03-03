@@ -201,18 +201,31 @@ bool is_difftest_cycle() {
 #endif
 
 uint32_t get_pc_reg() {
+  #ifdef CONFIG_YSYXSOC
     return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__ifu_module__DOT__ifu_pc;
+  #else
+    return 0;
+  #endif
 }
 
 uint32_t get_inst_reg() {
+  #ifdef CONFIG_YSYXSOC
     return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__bdu_module__DOT__bdu_inst_r;
+  #else
+    return 0;
+  #endif
 }
 
 uint32_t get_reg_val(int index) {
+  #ifdef CONFIG_YSYXSOC
     return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__rf_module__DOT__regfile[index];
+  #else
+    return 0;
+  #endif
 }
 
 uint32_t get_csr_val(int addr) {
+  #ifdef CONFIG_YSYXSOC
     switch (addr) {
         case 0x300:
             return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__csr_module__DOT__MSTATUS;
@@ -225,6 +238,9 @@ uint32_t get_csr_val(int addr) {
         default:
             panic("get_csr_val fault addr: %x", addr);
     }
+  #else
+    return 0;
+  #endif
 }
 
 void nvboard_bind_all_pins(TOP_NAME *top);
@@ -233,6 +249,7 @@ void nvboard_init_warp() {
     nvboard_init();
 }
 
+#ifdef CONFIG_TRACE_PERFORMANCE
 extern "C" void inst_count(void) {
     ++inst_cnt;
 }
@@ -278,3 +295,4 @@ extern "C" void mem_cycle_count(void) {
 void cycle_count(void) {
     ++cycle_cnt;
 }
+#endif // CONFIG_TRACE_PERFORMANCE

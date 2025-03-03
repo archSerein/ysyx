@@ -1,3 +1,4 @@
+`include "./include/generated/autoconf.vh"
 `include "riscv_param.vh"
 
 module exu (
@@ -187,10 +188,12 @@ module exu (
     assign idle = !(arvalid_o || awvalid_o || wvalid_o) || (arvalid_o && arready_i) || (awvalid_o && awready_i && wvalid_o && wready_i);
     assign valid_o = valid;
 
-    import "DPI-C" function void exu_alu_count();
-    always @*
-    begin
-        if (!ex_res_from_csr && !ex_res_from_mem && !res_from_compare && !ex_jmp_flag && valid)
-            exu_alu_count();
-    end
+    `ifdef CONFIG_TRACE_PERFORMANCE
+        import "DPI-C" function void exu_alu_count();
+        always @*
+        begin
+            if (!ex_res_from_csr && !ex_res_from_mem && !res_from_compare && !ex_jmp_flag && valid)
+                exu_alu_count();
+        end
+    `endif
 endmodule

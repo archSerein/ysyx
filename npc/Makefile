@@ -1,25 +1,31 @@
+-include $(NPC_HOME)/include/config/auto.conf
+-include $(NPC_HOME)/include/config/auto.conf.cmd
+
 TOPNAME = ysyxSoCFull
 VCD = ./V$(TOPNAME).vcd
-NXDC_FILES = constr/ysyxSoCFull.nxdc
+ifeq ($(ARCH), riscv32e-ysyxsoc)
+	NXDC_FILES = constr/ysyxSoCFull.nxdc
+else
+	NXDC_FILES = constr/top.nxdc
+endif
 INC_PATH ?= $(NPC_HOME)/include
 ALL ?=
 IMG ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.bin
 ELF ?= /home/serein/ysyx/ysyx-workbench/am-kernels/tests/am-tests/build/$(ALL)-riscv32e-ysyxsoc.elf
-ISA ?=
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --trace --Wno-DECLFILENAME \
 				-O3 --x-assign unique --x-initial fast --noassert --build -cc \
 				--timescale "1ns/1ns" --no-timing --autoflush
+ifeq ($(ARCH), riscv32e-ysyxsoc)
+	VERILATOR_CFLAGS += -DCONFIG_YSYXSOC
+endif
 
 BUILD_DIR = ./build
 OBJ_DIR = $(BUILD_DIR)/obj_dir
 BIN = $(BUILD_DIR)/$(TOPNAME)
 
 $(shell mkdir -p $(BUILD_DIR))
-
--include $(NPC_HOME)/include/config/auto.conf
--include $(NPC_HOME)/include/config/auto.conf.cmd
 
 .PHONY: waves
 waves: $(VCD)
@@ -39,8 +45,12 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 
 # project source
 VSRCS =	$(shell find $(abspath ./vsrc) -name "*.v")
-VSRCS += $(shell find $(abspath ../ysyxSoC/perip) -name "*.v")
-VSRCS += $(shell find $(abspath ../ysyxSoC/build) -name "*.v")
+ifeq ($(ARCH), riscv32e-ysyxsoc)
+	VSRCS += $(shell find $(abspath ../ysyxSoC/perip) -name "*.v")
+	VSRCS += $(shell find $(abspath ../ysyxSoC/build) -name "*.v")
+else
+	VSRCS += $(shell find $(abspath ../riscv32e-npc) -name "*.v")
+endif
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
 
@@ -51,6 +61,9 @@ include $(NVBOARD_HOME)/scripts/nvboard.mk
 INCFLAGS = $(addprefix -I, $(INC_PATH))
 CXXFLAGS += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 CXXFLAGS += $(shell llvm-config --cxxflags)
+ifeq ($(ARCH), riscv32e-ysyxsoc)
+	CXXFLAGS += -DCONFIG_YSYXSOC
+endif
 LDFLAGS += -lreadline $(shell llvm-config --libs)
 
 -include $(NPC_HOME)/.config
@@ -58,20 +71,24 @@ ifeq ($(CONFIG_DIFFTEST), y)
 	LDFLAGS += -L/home/serein/ysyx/ysyx-workbench/nemu/build/riscv32-nemu-interpreter-so
 endif
 
+ifeq ($(ARCH), riscv32e-ysyxsoc)
+	INCDIR = +incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/uart16550/rtl	+incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/spi/rtl
+else
+	INCDIR = +incdir+/home/serein/ysyx/ysyx-workbench/riscv32e-npc
+endif
+
 $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 		@python3 $(NPC_HOME)/trans.py
 		@rm -rf $(OBJ_DIR)
 		$(VERILATOR) $(VERILATOR_CFLAGS) \
 		+incdir+/home/serein/ysyx/ysyx-workbench/npc/vsrc \
-		+incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/uart16550/rtl	\
-		+incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/spi/rtl	\
+		$(INCDIR)	\
 		--top-module $(TOPNAME) $^ \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 
 run: $(BIN)
 	$(call git_commit, "sim RTL")  # DO NOT REMOVE THIS LINE!!!
-	@echo $(ISA)
 	@$^ $(IMG) -b
 	@echo "all done"
 
@@ -84,9 +101,9 @@ FILE_ID := $(shell expr $(shell ls -1 $(DATA_DIR) 2>/dev/null | wc -l) + 1)
 perf:
 	python3 data_processing.py
 	@cp ./performance-data.txt ./performance/performance-data-$(FILE_ID).txt
-	git add ./performance/*
-	git commit -m"update performance-table"
-	git push origin
+	@git add ./performance/*
+	@git commit -m"update performance-table"
+	@git push origin
 	@echo "update success"
 
 all:

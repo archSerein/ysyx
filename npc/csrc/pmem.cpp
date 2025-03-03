@@ -10,18 +10,19 @@
 
 #define MASK(addr) ((addr) & (~0x03u))
 
-uint8_t *sram;
-uint8_t *mrom;
-uint8_t *flash;
-uint8_t *psram;
-uint8_t *sdram;
+uint8_t *sram = NULL;
+uint8_t *mrom = NULL;
+uint8_t *flash = NULL;
+uint8_t *psram = NULL;
+uint8_t *sdram = NULL;
+uint8_t *pmem = NULL;
 
-uint8_t* guest_to_host(uint32_t paddr) { return sram + paddr - CONFIG_MBASE; }
 uint8_t* mrom_to_host(uint32_t paddr) { return mrom + paddr - CONFIG_MROM_BASE; }
 uint8_t* sram_to_host(uint32_t paddr) { return sram + paddr - CONFIG_SRAM_BASE; }
 uint8_t* flash_to_host(uint32_t paddr) { return flash + paddr; }
 uint8_t* psram_to_host(uint32_t paddr) { return psram + paddr; }
 uint8_t* sdram_to_host(uint32_t paddr) { return sdram + paddr; }
+uint8_t* guest_to_host(uint32_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 
 long
 init_mem(char *path)
@@ -35,6 +36,11 @@ init_mem(char *path)
         psram == NULL || sdram == NULL) {
         Log("mem init fail, exit now\n");
         exit(1);
+    }
+    pmem = (uint8_t *)aligned_alloc(32, CONFIG_MEM_SIZE);
+    if (pmem == NULL) {
+      Log("mem init fail, exit now\n");
+      exit(1);
     }
     if(path == NULL)
     {
@@ -53,7 +59,12 @@ init_mem(char *path)
     long size = ftell(fp);
 
     fseek(fp, 0, SEEK_SET);
-    int ret = fread(flash, size, 1, fp);
+    int ret;
+    #ifdef CONFIG_YSYXSOC
+        ret = fread(flash, size, 1, fp);
+    #else
+        ret = fread(pmem, size, 1, fp);
+    #endif
     assert(ret == 1);
     Log("load image size: 0x%08lx", size);
 
@@ -145,15 +156,6 @@ vaddr_read(uint32_t addr, int len)
     }
 }
 
-void
-free() {
-    free(mrom);
-    free(sram);
-    free(flash);
-    free(psram);
-    free(sdram);
-}
-
 extern "C" void flash_read(int32_t addr, int32_t *data) {
     if ((uint32_t)addr >= CONFIG_FLASH_SIZE) {
         Log("flash_read: 0x%08x out of range", addr);
@@ -234,3 +236,14 @@ extern "C" void sdram_write(int32_t addr, uint8_t mask, int32_t data) {
             break;
     }
 }
+
+void
+free() {
+  free(mrom);
+  free(sram);
+  free(flash);
+  free(psram);
+  free(sdram);
+  free(pmem);
+}
+

@@ -1,3 +1,4 @@
+`include "./include/generated/autoconf.vh"
 `include "riscv_param.vh"
 
 module adu (
@@ -282,21 +283,23 @@ module adu (
     assign is_csr_inst = inst_csrrw | inst_csrrs;
     assign is_jump_inst = inst_jal | inst_jalr;
     assign is_default_inst = inst_ecall | inst_mret | inst_ebreak;
-    import "DPI-C" function void inst_type_count(input byte mask);
-    always @*
-    begin
-        if (valid) begin
-            if (is_cal_inst) begin
-                inst_type_count(0);
-            end else if (is_mem_inst) begin
-                inst_type_count(1);
-            end else if (is_csr_inst) begin
-                inst_type_count(2);
-            end else if (is_jump_inst) begin
-                inst_type_count(4);
-            end else if (is_default_inst) begin
-                inst_type_count(6);
+    `ifdef CONFIG_TRACE_PERFORMANCE
+        import "DPI-C" function void inst_type_count(input byte mask);
+        always @*
+        begin
+            if (valid) begin
+                if (is_cal_inst) begin
+                    inst_type_count(0);
+                end else if (is_mem_inst) begin
+                    inst_type_count(1);
+                end else if (is_csr_inst) begin
+                    inst_type_count(2);
+                end else if (is_jump_inst) begin
+                    inst_type_count(4);
+                end else if (is_default_inst) begin
+                    inst_type_count(6);
+                end
             end
         end
-    end
+    `endif
 endmodule

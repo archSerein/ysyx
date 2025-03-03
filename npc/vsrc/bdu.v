@@ -1,3 +1,4 @@
+`include "./include/generated/autoconf.vh"
 `include "riscv_param.vh"
 module bdu (
     input                           clock,
@@ -42,35 +43,27 @@ module bdu (
         end
     end
 
-    import "DPI-C" function void ifu_inst_count();
+    `ifdef CONFIG_TRACE_PERFORMANCE
+        import "DPI-C" function void ifu_inst_count();
+    `endif
     wire is_br_inst;
     wire is_set_inst;
     // axi read data channel
     reg  [31:0] bdu_inst_r;
-    reg rready;
     always @(posedge clock) begin
         if (reset) begin
-            rready <= 1'b1;
             valid <= 1'b0;
-        end else if (rvalid_i && rready) begin
-            // only rresp_i == INST_OK or rresp_i == INST_EXOKAY update the
-            // bdu_inst_r and rready, otherwise the bdu_inst_r keep the old value
-            if (rresp_i == INST_OK || rresp_i == INST_EXOKAY) begin
-                bdu_inst_r <= rdata_i;
-                valid <= 1'b1;
+        end else if (rvalid_i) begin
+            bdu_inst_r <= rdata_i;
+            valid <= 1'b1;
+            `ifdef CONFIG_TRACE_PERFORMANCE
                 ifu_inst_count();
-                // $display("bdu_pc: %h bdu_inst: %h", bdu_pc, rdata_i);
-            end else begin
-                $display("mem response error: %h", rresp_i);
-                $finish;
-            end
-            rready <= 1'b0;
-        end else if (!rvalid_i) begin
-            rready <= 1'b1;
+            `endif
+            // $display("bdu_pc: %h bdu_inst: %h", bdu_pc, rdata_i);
+        end else begin
             valid <= 1'b0;
         end
     end
-    assign rready_o = rready;
     assign bdu_inst = bdu_inst_r;
 
     wire [ 4:0] bdu_rs1;
@@ -202,15 +195,17 @@ module bdu (
     assign bdu_csr_addr_o = bdu_csr_addr;
     assign valid_o = valid;
 
-    import "DPI-C" function void inst_type_count(input byte mask);
-    always @*
-    begin
-        if (valid) begin
-            if (is_br_inst) begin
-                inst_type_count(3);
-            end else if (is_set_inst) begin
-                inst_type_count(6);
+    `ifdef CONFIG_TRACE_PERFORMANCE
+        import "DPI-C" function void inst_type_count(input byte mask);
+        always @*
+        begin
+            if (valid) begin
+                if (is_br_inst) begin
+                    inst_type_count(3);
+                end else if (is_set_inst) begin
+                    inst_type_count(6);
+                end
             end
         end
-    end
+    `endif
 endmodule

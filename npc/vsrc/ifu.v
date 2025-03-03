@@ -22,7 +22,8 @@ module ifu (
     input                               arready_i
 );
 
-    localparam RESET_PC = 32'h30000000;
+    localparam YSYXSOC_RESET_PC = 32'h30000000;
+    localparam NPC_RESET_PC     = 32'h80000000;
 
     reg  [31:0] ifu_pc;
     // 实例化一个加法器用来作为 pc 的自增
@@ -72,7 +73,11 @@ module ifu (
             // 传递的数据无效
             valid <= 1'b0;
             rreq  <= 1'b0;
-            ifu_pc <= RESET_PC;
+            `ifdef CONFIG_YSYXSOC
+              ifu_pc <= YSYXSOC_RESET_PC;
+            `else
+              ifu_pc <= NPC_RESET_PC;
+            `endif
         end else if (arready_i && rreq) begin
             // 握手成功, 传递的数据有效
             valid <= 1'b1;
@@ -100,12 +105,14 @@ module ifu (
             is_difftest(difftest);
         end
     `endif
-    import "DPI-C" function void inst_count();
-    always @*
-    begin
-        if (started && wbu_finish_i)
-            inst_count();
-    end            
+    `ifdef CONFIG_TRACE_PERFORMANCE
+        import "DPI-C" function void inst_count();
+        always @*
+        begin
+            if (started && wbu_finish_i)
+                inst_count();
+        end            
+    `endif
 
     // 握手信号
     assign araddr_o = ifu_pc;

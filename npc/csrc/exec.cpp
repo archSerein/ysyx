@@ -102,7 +102,9 @@ for (int i = 0; i < n; i++) {
     
     nvboard_update();
     single_cycle(&cur_inst);
-    cycle_count();
+    #ifdef CONFIG_TRACE_PERFORMANCE
+      cycle_count();
+    #endif // CONFIG_TRACE_PERFORMANCE
 
     #ifdef CONFIG_DIFFTEST
       if (is_difftest_cycle())

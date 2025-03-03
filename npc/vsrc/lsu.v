@@ -1,3 +1,4 @@
+`include "./include/generated/autoconf.vh"
 `include "riscv_param.vh"
 module lsu (
     input                               clock,
@@ -116,8 +117,10 @@ module lsu (
     localparam [ 1:0] FINISH    = 2'b11;
     reg        [ 1:0] state;
     reg        [31:0] rdata_r;
-    import "DPI-C" function void lsu_load_store_count();
-    import "DPI-C" function void mem_cycle_count();
+    `ifdef CONFIG_TRACE_PERFORMANCE
+        import "DPI-C" function void lsu_load_store_count();
+        import "DPI-C" function void mem_cycle_count();
+    `endif
     always @(posedge clock) begin
         if (reset) begin
             state <= IDLE;
@@ -127,11 +130,15 @@ module lsu (
                 IDLE: begin
                     if (exu_valid_i) begin
                         state <= HANDLE;
-                        mem_cycle_count();
+                        `ifdef CONFIG_TRACE_PERFORMANCE
+                            mem_cycle_count();
+                        `endif
                     end
                 end
                 HANDLE: begin
-                    mem_cycle_count();
+                    `ifdef CONFIG_TRACE_PERFORMANCE
+                        mem_cycle_count();
+                    `endif
                     if (|ms_mem_re || ms_mem_we) begin
                         state <= WAIT;
                     end
@@ -141,7 +148,9 @@ module lsu (
                     end
                 end
                 WAIT: begin
-                    mem_cycle_count();
+                    `ifdef CONFIG_TRACE_PERFORMANCE
+                        mem_cycle_count();
+                    `endif
                     if (bvalid_i || rvalid_i) begin
                         state <= FINISH;
                         valid <= 1'b1;
@@ -151,11 +160,15 @@ module lsu (
                             $display("fault response from memory");
                             $finish;
                         end
-                        lsu_load_store_count();
+                        `ifdef CONFIG_TRACE_PERFORMANCE
+                            lsu_load_store_count();
+                        `endif
                     end
                 end
                 FINISH: begin
-                    mem_cycle_count();
+                    `ifdef CONFIG_TRACE_PERFORMANCE
+                        mem_cycle_count();
+                    `endif
                     valid <= 1'b0;
                     state <= IDLE;
                 end
