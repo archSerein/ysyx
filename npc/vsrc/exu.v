@@ -4,14 +4,8 @@
 module exu (
     input                               clock,
     input                               reset,
-    input                               adu_valid_i,
-    input  [`ADU_EXU_BUS_WIDTH-1:0]     adu_exu_bus_i,
-    // memfile
-    // output [31:0]                       mem_addr_o,
-    // output [31:0]                       mem_wdata_o,
-    // output [ 3:0]                       mem_we_mask_o,
-    // output                              mem_wen_o,
-    // output                              mem_ren_o,
+    input                               deu_valid_i,
+    input  [`DEU_EXU_BUS_WIDTH-1:0]     deu_exu_bus_i,
     // axi read addr channel
     input                               arready_i,
     output [31:0]                       araddr_o,
@@ -32,12 +26,11 @@ module exu (
 );
 
     reg valid;
-    reg  [`ADU_EXU_BUS_WIDTH-1:0]     adu_exu_bus;
+    reg  [`DEU_EXU_BUS_WIDTH-1:0]     deu_exu_bus;
     wire [ 5:0]           ex_alu_op;
     wire [31:0]           ex_alu_src1;
     wire [31:0]           ex_alu_src2;
     wire                  ex_res_from_mem;
-    wire                  ex_res_from_csr;
     wire                  ex_gr_we;
     wire                  ex_csr_we;
     wire [ 4:0]           ex_rd;
@@ -48,26 +41,20 @@ module exu (
     wire                  ex_break_signal;
     wire [ 3:0]           ex_mem_re;
     wire [ 3:0]           ex_mem_we;
-    wire [31:0]           ex_csr_value;
     wire [31:0]           ex_csr_wdata;
     wire [31:0]           ex_rs2_value;
-    wire [31:0]           ex_snpc;
-    wire                  compare_result;
-    wire                  res_from_compare;
+    wire                  ex_res_from_pre;
+    wire [31:0]           ex_final_result;
 
     assign {
-        res_from_compare,
-        compare_result,
         ex_excp_flush,
         ex_xret_flush,
         ex_break_signal,
-        ex_snpc,
         ex_alu_src1,
         ex_alu_src2,
         ex_rs2_value,
         ex_alu_op,
         ex_res_from_mem,
-        ex_res_from_csr,
         ex_gr_we,
         ex_csr_we,
         ex_mem_re,
@@ -76,8 +63,9 @@ module exu (
         ex_jmp_flag,
         ex_csr_addr,
         ex_csr_wdata,
-        ex_csr_value
-    } = adu_exu_bus;
+        ex_res_from_pre,
+        ex_final_result
+    } = deu_exu_bus;
 
     wire [31:0] ex_alu_result;
     alu alu_module (
@@ -126,47 +114,40 @@ module exu (
     wire [31:0] ex_jmp_target;
     assign ex_jmp_target = ex_alu_result;
 
+    wire [31:0] final_result;
+    assign final_result = ex_res_from_pre ? ex_final_result : ex_alu_result;
+
     assign exu_lsu_bus_o = {
         ex_csr_wdata,           
-        res_from_compare,       
-        compare_result,         
-        ex_snpc,                
         ex_csr_we,              
         mem_addr_mask,          
         ex_mem_re,              
         |ex_mem_we,
         ex_csr_addr,
-        ex_alu_result,          
-        ex_csr_value,           
         ex_res_from_mem,        
-        ex_res_from_csr,        
         ex_gr_we,               
         ex_rd,                  
         ex_excp_flush,          
         ex_xret_flush,          
         ex_break_signal,        
         ex_jmp_flag,            
-        ex_jmp_target
+        ex_jmp_target,
+        final_result
     };
-    /*32 + 1 + 1 + 32 + 1 + 2 + 4 + 1 + 12 + 32 + 32 + 1 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 = 194*/
+    /* 32 + 1 + 2 + 4 + 1 + 12 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 + 32 = 127*/
+
     wire    idle;
     always @(posedge clock) begin
         if (reset) begin
             valid <= 1'b0;
-        end else if (adu_valid_i) begin
+        end else if (deu_valid_i) begin
             valid <= 1'b1;
-            adu_exu_bus <= adu_exu_bus_i;
+            deu_exu_bus <= deu_exu_bus_i;
         end else if (idle) begin
             valid <= 1'b0;
         end
     end
-    // to memfile module
-    // assign mem_addr_o       = ex_alu_result;
-    // assign mem_wdata_o      =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
-    //                             ({32{ex_mem_we == 4'b0011}} & mem_half_wdata) |
-    //                             ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata);
-    // assign mem_wen_o        = (|ex_mem_we) && valid;
-    // assign mem_ren_o        = (|ex_mem_re) && valid;
+
     assign arsize_o         = {{3{ex_mem_re == 4'b1111}} & 3'b010} | 
                               {{3{ex_mem_re == 4'b0011 || ex_mem_re == 4'b0111}} & 3'b001} |
                               {{3{ex_mem_re == 4'b0001 || ex_mem_re == 4'b0101}} & 3'b000};
@@ -192,7 +173,7 @@ module exu (
         import "DPI-C" function void exu_alu_count();
         always @*
         begin
-            if (!ex_res_from_csr && !ex_res_from_mem && !res_from_compare && !ex_jmp_flag && valid)
+            if (!ex_res_from_pre && !ex_res_from_mem && !ex_jmp_flag && valid)
                 exu_alu_count();
         end
     `endif

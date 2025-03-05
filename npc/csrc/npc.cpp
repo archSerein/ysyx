@@ -29,6 +29,7 @@ int64_t br_inst_cnt = 0;
 int64_t jump_inst_cnt = 0;
 int64_t default_inst_cnt = 0;
 int64_t mem_cycle_cnt = 0;
+int64_t hit_counter = 0;
 
 extern "C" void ending(int num) { e = num; }
 extern "C" void putch(int ch) { putchar(ch); }
@@ -121,7 +122,7 @@ sim_exit(){
         fprintf(fp, "Cycle: %ld Instructions: %ld, IPC: %.04f", cycle_cnt, inst_cnt, (double)inst_cnt / cycle_cnt);
         fprintf(fp, "IFU Instructions: %ld, LSU Load/Store Instructions: %ld, EXU ALU Instructions: %ld", ifu_inst_cnt, lsu_load_cnt, exu_alu_cnt);
         fprintf(fp, "CAL Instructions: %ld, MEM Instructions: %ld, CSR Instructions: %ld, BR Instructions: %ld, JUMP Instructions: %ld, DEFAULT Instructions: %ld", cal_inst_cnt, mem_inst_cnt, csr_inst_cnt, br_inst_cnt, jump_inst_cnt, default_inst_cnt);
-        float total_inst = (double)inst_cnt;
+        double total_inst = (double)inst_cnt;
         fprintf(fp, "CAL Instructions Ratio: %.04f", cal_inst_cnt / total_inst);
         fprintf(fp, "MEM Instructions Ratio: %.04f", mem_inst_cnt / total_inst);
         fprintf(fp, "CSR Instructions Ratio: %.04f", csr_inst_cnt / total_inst);
@@ -129,7 +130,8 @@ sim_exit(){
         fprintf(fp, "JUMP Instructions Ratio: %.04f", jump_inst_cnt / total_inst);
         fprintf(fp, "DEFAULT Instructions Ratio: %.04f", default_inst_cnt / total_inst);
         fprintf(fp, "Memory Access Cycle: %ld, average memory access cycle: %.04f", mem_cycle_cnt, (double)mem_cycle_cnt / lsu_load_cnt);
-        fprintf(fp, "综合面积: 34860.098000um^2, 频率: 500MHz");
+        fprintf(fp, "icache hit Ratio: %.04f", (double)hit_counter / inst_cnt);
+        fprintf(fp, "综合面积: 43843.982000um^2, 频率: 450MHz");
         fclose(fp);
     #endif // CONFIG_TRACE_PERFORMANCE
 }
@@ -210,7 +212,7 @@ uint32_t get_pc_reg() {
 
 uint32_t get_inst_reg() {
   #ifdef CONFIG_YSYXSOC
-    return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__bdu_module__DOT__bdu_inst_r;
+    return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__rfu_module__DOT__rfu_inst_r;
   #else
     return 0;
   #endif
@@ -291,6 +293,9 @@ extern "C" void exu_alu_count(void) {
 
 extern "C" void mem_cycle_count(void) {
     ++mem_cycle_cnt;
+}
+extern "C" void hit_cnt(void) {
+  ++hit_counter;
 }
 void cycle_count(void) {
     ++cycle_cnt;

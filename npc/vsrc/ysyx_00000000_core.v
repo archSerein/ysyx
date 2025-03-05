@@ -40,7 +40,7 @@ module ysyx_00000000_core (
 
     wire                             wbu_finish;
     wire [`WBU_IFU_BUS_WIDTH-1:0]    wbu_ifu_bus;
-    wire [`IFU_BDU_BUS_WIDTH-1:0]    ifu_bdu_bus;
+    wire [`IFU_RFU_BUS_WIDTH-1:0]    ifu_rfu_bus;
     wire                             ifu_valid;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
@@ -56,7 +56,7 @@ module ysyx_00000000_core (
         // csr register
         .csr_mtvec      (csr_mtvec),
         .csr_mepc       (csr_mepc),
-        .ifu_bdu_bus_o  (ifu_bdu_bus),
+        .ifu_rfu_bus_o  (ifu_rfu_bus),
 
         .araddr_o       (araddr),
         .arvalid_o      (arvalid),
@@ -95,42 +95,42 @@ module ysyx_00000000_core (
     wire [11:0] csr_raddr;
     wire [31:0] csr_value;
 
-    wire [`BDU_ADU_BUS_WIDTH-1:0] bdu_adu_bus;
-    wire bdu_valid;
+    wire [`RFU_DEU_BUS_WIDTH-1:0] rfu_deu_bus;
+    wire rfu_valid;
 
-    bdu bdu_module (
+    rfu rfu_module (
         .clock          (clock),
         .reset          (reset),
         .ifu_valid_i    (ifu_valid),
-        .ifu_bdu_bus_i  (ifu_bdu_bus),
+        .ifu_rfu_bus_i  (ifu_rfu_bus),
         
         // regfile
-        .bdu_rs1_o      (rs1),
-        .bdu_rs2_o      (rs2),
-        .bdu_rs1_value_i(rs1_value),
-        .bdu_rs2_value_i(rs2_value),
+        .rfu_rs1_o      (rs1),
+        .rfu_rs2_o      (rs2),
+        .rfu_rs1_value_i(rs1_value),
+        .rfu_rs2_value_i(rs2_value),
 
         // csr register
-        .bdu_csr_addr_o (csr_raddr),
-        .bdu_csr_value_i(csr_value),
+        .rfu_csr_addr_o (csr_raddr),
+        .rfu_csr_value_i(csr_value),
 
         .rdata_i        (rdata),
         .rvalid_i       (rvalid),
 
-        .bdu_adu_bus_o  (bdu_adu_bus),
-        .valid_o        (bdu_valid)
+        .rfu_deu_bus_o  (rfu_deu_bus),
+        .valid_o        (rfu_valid)
     );
 
-    wire [`ADU_EXU_BUS_WIDTH-1:0] adu_exu_bus;
-    wire adu_valid;
+    wire [`DEU_EXU_BUS_WIDTH-1:0] deu_exu_bus;
+    wire deu_valid;
 
-    adu adu_module (
+    deu deu_module (
         .clock          (clock),
         .reset          (reset),
-        .bdu_valid_i    (bdu_valid),
-        .bdu_adu_bus_i  (bdu_adu_bus),
-        .adu_exu_bus_o  (adu_exu_bus),
-        .valid_o        (adu_valid)
+        .rfu_valid_i    (rfu_valid),
+        .rfu_deu_bus_i  (rfu_deu_bus),
+        .deu_exu_bus_o  (deu_exu_bus),
+        .valid_o        (deu_valid)
     );
 
     wire [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
@@ -139,8 +139,8 @@ module ysyx_00000000_core (
     exu exu_module (
         .clock          (clock),
         .reset          (reset),
-        .adu_valid_i    (adu_valid),
-        .adu_exu_bus_i  (adu_exu_bus),
+        .deu_valid_i    (deu_valid),
+        .deu_exu_bus_i  (deu_exu_bus),
 
         .arready_i      (exu_arready),
         .araddr_o       (exu_araddr),

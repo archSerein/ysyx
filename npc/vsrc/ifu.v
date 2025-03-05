@@ -12,7 +12,7 @@ module ifu (
     input  [`CSR_DATA_WIDTH-1:0]        csr_mtvec,
     input  [`CSR_DATA_WIDTH-1:0]        csr_mepc,
 
-    output [`IFU_BDU_BUS_WIDTH-1:0]     ifu_bdu_bus_o,
+    output [`IFU_RFU_BUS_WIDTH-1:0]     ifu_rfu_bus_o,
 
     output                              valid_o,
 
@@ -55,7 +55,6 @@ module ifu (
     // valid: 表示向下一个阶段传递的数据是否有效
     // rreq: pc 有效但是握手没有完成需要将请求信号保持, 1->表示还有请求没有成
     // 功发起, 0->表示所有请求都以发送成功
-    reg  valid;
     reg  rreq;
     reg  started;
 
@@ -71,7 +70,6 @@ module ifu (
         if (reset) begin
             // 复位期间不发送取指请求
             // 传递的数据无效
-            valid <= 1'b0;
             rreq  <= 1'b0;
             `ifdef CONFIG_YSYXSOC
               ifu_pc <= YSYXSOC_RESET_PC;
@@ -80,12 +78,10 @@ module ifu (
             `endif
         end else if (arready_i && rreq) begin
             // 握手成功, 传递的数据有效
-            valid <= 1'b1;
             rreq  <= 1'b0;
         end else if (!rreq && wbu_finish_i) begin
             // 发起新的请求
             rreq  <= 1'b1;
-            valid <= 1'b0;
             if (started)
                 ifu_pc <= dnpc;
         end
@@ -111,14 +107,14 @@ module ifu (
         begin
             if (started && wbu_finish_i)
                 inst_count();
-        end            
+        end
     `endif
 
     // 握手信号
     assign araddr_o = ifu_pc;
     assign arvalid_o = rreq;
 
-    assign ifu_bdu_bus_o = {ifu_pc, snpc};
-    assign valid_o = valid;
+    assign ifu_rfu_bus_o = {ifu_pc, snpc};
+    assign valid_o = arready_i && rreq;
 
 endmodule

@@ -1,3 +1,4 @@
+`include "./include/generated/autoconf.vh"
 module icache (
   input             clock,
   input             reset,
@@ -47,6 +48,7 @@ module icache (
   wire  [ 1:0]  sendfillreq_next_state;
   wire  [ 1:0]  waitfillresp_next_state;
   wire          fill_data_valid;
+  wire          uncache_addr;
   wire          access_data_fault;
 
   always @(posedge clock) begin
@@ -62,20 +64,20 @@ module icache (
   assign mshr_next_state          = {2{mshr == READY}} & ready_next_state |
                                     {2{mshr == SENDFILLREQ}} & WAITFILLRESP |
                                     {2{mshr == WAITFILLRESP}} & waitfillresp_next_state;
-  assign hit                      = tag == tagArray[index]  &&  validArray[index];
+  assign hit                      = tag == tagArray[index]  &&  validArray[index] && rreq_i;
 
   always @ (posedge clock) begin
-    if (mshr == WAITFILLRESP && icache_rvalid_i) begin
+    if (fill_data_valid && !uncache_addr) begin
       dataArray[miss_req_index]  <= icache_rdata_i;
     end
   end
   always @ (posedge clock) begin
-    if (mshr == WAITFILLRESP && icache_rvalid_i) begin
+    if (fill_data_valid && !uncache_addr) begin
       tagArray[miss_req_index]   <= miss_req_tag;
     end
   end
   always @ (posedge clock) begin
-    if (fill_data_valid) begin
+    if (fill_data_valid && !uncache_addr) begin
       validArray[miss_req_index] <= 1'b1;
     end
   end
@@ -91,7 +93,10 @@ module icache (
     end
   end
 
+  assign miss_req_tag             = miss_req_addr[31:6];
+  assign miss_req_index           = miss_req_addr[ 5:2];
   assign fill_data_valid          = mshr == WAITFILLRESP && icache_rvalid_i && (icache_rresp_i == INST_OK || icache_rresp_i == INST_EXOKAY);
+  assign uncache_addr             = miss_req_addr <= 32'h0f002000 && miss_req_addr >= 32'h0f000000;
   assign access_data_fault        = mshr == WAITFILLRESP && icache_rvalid_i && (icache_rresp_i == INST_DECERR || icache_rresp_i == INST_SLVERR);
   assign rready_o                 = mshr == READY;
   assign rvalid_o                 = hit || fill_data_valid;
@@ -100,4 +105,14 @@ module icache (
   assign icache_rready_o          = mshr == WAITFILLRESP;
   assign icache_araddr_o          = miss_req_addr;
   assign icache_arvalid_o         = mshr == SENDFILLREQ;
+
+  `ifdef CONFIG_TRACE_PERFORMANCE
+    import "DPI-C"  function  void  hit_cnt();
+    always @*
+    begin
+      if (hit && rreq_i) begin
+        hit_cnt();
+      end
+    end
+  `endif
 endmodule

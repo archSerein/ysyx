@@ -5,8 +5,6 @@ module lsu (
     input                               reset,
     input                               exu_valid_i,
     input  [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_i,
-    // memfile
-    // input  [31:0]                       mem_rdata_i,
     // read data channel
     input  [31:0]                       rdata_i,
     input  [ 1:0]                       rresp_i,
@@ -29,13 +27,10 @@ module lsu (
 
     reg valid;
     reg [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
-    wire [31:0] ms_snpc;
-    wire [31:0] ms_alu_result;
     wire [31:0] ms_csr_value;
     wire [31:0] ms_jmp_target;
     wire [31:0] ms_csr_wdata;
     wire        ms_res_from_mem;
-    wire        ms_res_from_csr;
     wire        ms_gr_we;
     wire [ 4:0] ms_rd;
     wire [ 3:0] ms_mem_re;
@@ -47,31 +42,25 @@ module lsu (
     wire        ms_xret_flush;
     wire [ 1:0] ms_mem_addr_mask;
     wire [ 3:0] ms_mem_re;
-    wire        compare_result;
-    wire        res_from_compare;
     wire        ms_csr_we;
+    wire [31:0] ms_final_result;
     
     assign {
         ms_csr_wdata,
-        res_from_compare,
-        compare_result,
-        ms_snpc,
         ms_csr_we,
         ms_mem_addr_mask,
         ms_mem_re,
         ms_mem_we,
         ms_csr_addr,
-        ms_alu_result,
-        ms_csr_value,
         ms_res_from_mem,
-        ms_res_from_csr,
         ms_gr_we,
         ms_rd,
         ms_excp_flush,
         ms_xret_flush,
         ms_break_signal,
         ms_jmp_flag,
-        ms_jmp_target
+        ms_jmp_target,
+        ms_final_result
     } = exu_lsu_bus;
         
 
@@ -79,7 +68,7 @@ module lsu (
     wire [15:0] ms_halfload;
     wire [31:0] ms_wordload;
     wire [31:0] ms_result;
-    wire [31:0] ms_final_result;
+    wire [31:0] final_result;
 
     wire [31:0] rdata;
     assign ms_byteload =   {8{ms_mem_addr_mask == 2'b00}} & rdata[7:0] |
@@ -98,12 +87,7 @@ module lsu (
                             {32{ms_mem_re == 4'b0101}} & {{24{ms_byteload[7]}}, ms_byteload} |
                             {32{ms_mem_re == 4'b0001}} & {{24'b0}, ms_byteload};
 
-    assign ms_final_result = {32{ms_res_from_mem}} & ms_result |
-                             {32{ms_res_from_csr}} & ms_csr_value |
-                             {32{ms_jmp_flag}} & ms_snpc |
-                             {32{res_from_compare}} & {31'b0, compare_result} |
-                             {32{!ms_res_from_mem && !ms_res_from_csr &
-                                    !res_from_compare & !ms_jmp_flag}} & ms_alu_result;
+    assign final_result = ms_res_from_mem ? ms_result : ms_final_result;
 
     always @(posedge clock) begin
         if (exu_valid_i) begin
@@ -181,7 +165,7 @@ module lsu (
 
     assign lsu_wbu_bus_o = {
         ms_csr_we,
-        ms_final_result,
+        final_result,
         ms_gr_we,
         ms_rd,
         ms_csr_addr,

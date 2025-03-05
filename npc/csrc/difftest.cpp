@@ -68,7 +68,7 @@ init_difftest(const char *ref_so_file, long img_size, int port)
       "If it is not necessary, you can turn it off in menuconfig.", ref_so_file);
 
     ref_difftest_init(port);
-    #ifdef CONFIG_YSYCSOC
+    #ifdef CONFIG_YSYXSOC
       ref_difftest_memcpy(RESET_VECTOR, flash_to_host(RESET_VECTOR-PMEM_LEFT), img_size, DIFFTEST_TO_REF);
     #else
       ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR-PMEM_LEFT), img_size, DIFFTEST_TO_REF);
