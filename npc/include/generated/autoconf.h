@@ -4,4 +4,4 @@
  * Main menu
  *
  */
-#define CONFIG_DIFFTEST 1
+#define CONFIG_TRACE_PERFORMANCE 1

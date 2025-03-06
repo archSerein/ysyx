@@ -105,7 +105,7 @@ module ifu (
         import "DPI-C" function void inst_count();
         always @*
         begin
-            if (started && wbu_finish_i)
+            if (rreq && arready_i)
                 inst_count();
         end
     `endif

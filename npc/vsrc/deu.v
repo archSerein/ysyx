@@ -381,6 +381,8 @@ module deu (
                   inst_type_count(1);
               end else if (is_csr_inst) begin
                   inst_type_count(2);
+              end else if (is_branch_inst) begin
+                  inst_type_count(3);
               end else if (is_jump_inst) begin
                   inst_type_count(4);
               end else if (is_default_inst) begin

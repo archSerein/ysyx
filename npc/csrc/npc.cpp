@@ -131,7 +131,7 @@ sim_exit(){
         fprintf(fp, "DEFAULT Instructions Ratio: %.04f", default_inst_cnt / total_inst);
         fprintf(fp, "Memory Access Cycle: %ld, average memory access cycle: %.04f", mem_cycle_cnt, (double)mem_cycle_cnt / lsu_load_cnt);
         fprintf(fp, "icache hit Ratio: %.04f", (double)hit_counter / inst_cnt);
-        fprintf(fp, "综合面积: 43843.982000um^2, 频率: 450MHz");
+        fprintf(fp, "综合面积: 41815.200000um^2, 频率: 455MHz");
         fclose(fp);
     #endif // CONFIG_TRACE_PERFORMANCE
 }
