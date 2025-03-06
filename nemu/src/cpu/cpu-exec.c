@@ -248,6 +248,10 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+      #ifdef CONFIG_ITRACE
+        if (nemu_state.halt_ret != 0)
+          isa_exec_err_display();
+      #endif
       // fall through
     case NEMU_QUIT: statistic();
   }
@@ -257,14 +261,12 @@ void cpu_exec(uint64_t n) {
 void
 isa_exec_err_display()
 {
-  int begin = (iringbufindex / iringlength == 0)  ?  0 : iringbufindex;
-  int end = (iringbufindex%iringlength) - 1;
-  while(begin%iringlength != end)
-  {
-    Log("%s", iringbuf[begin%iringlength]);
-    ++begin;
+  int pos = iringbufindex % iringlength;
+  for (int i = 0; i < iringlength; i++) {
+    int index = (i+pos)%iringlength;
+    if (strlen(iringbuf[index]))
+      Log("%s", iringbuf[index]);
   }
-  Log("%s", iringbuf[begin%iringlength]);
 }
 #endif
 

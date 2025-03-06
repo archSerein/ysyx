@@ -219,12 +219,14 @@ void sdb_set_batch_mode() {
 void sdb_mainloop() {
   /*
   int count = 0;
+  int cnt = 0;
   FILE *in = fopen("/home/serein/ysyx/ysyx-workbench/nemu/tools/gen-expr/build/input", "r");
   assert(in);
   char str[65536];
 
   bool success = true;
   while (fgets(str, sizeof(str), in) != NULL){
+    ++cnt;
     str[strlen(str)-1] = '\0';
     uint32_t sum = (uint32_t)atoi(strtok(str, " "));
     char *expression = strtok(NULL, "");
@@ -238,6 +240,8 @@ void sdb_mainloop() {
 
   fclose(in);
   printf("count->%d\n", count);
+  if (count == 0)
+    printf("all %d tests pass\n", cnt);
   */
   if (is_batch_mode) {
     cmd_c(NULL);

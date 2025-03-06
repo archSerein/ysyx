@@ -138,10 +138,12 @@ static int decode_exec(Decode *s) {
   INSTPAT("??????? ????? ????? 111 ????? 00100 11", andi   , I, R(rd) = src1 & imm);
   INSTPAT("0000000 ????? ????? 110 ????? 01100 11", or     , R, R(rd) = src1 | src2);
   INSTPAT("??????? ????? ????? 110 ????? 00100 11", ori    , I, R(rd) = src1 | imm);
-  INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu  , R, uint32_t high_high = (src1 >> 16) * (src2 >> 16); \
-                                                               uint32_t low_high = (src1 & 0x0000FFFF) * (src2 >> 16); \
-                                                               uint32_t high_low = (src1 >> 16) * (src2 & 0x0000FFFF); \
-                                                               R(rd) = high_high + (low_high >> 16) + (high_low >> 16););
+  INSTPAT("0000001 ????? ????? 011 ????? 01100 11", mulhu  , R, uint32_t hi1 = src1 >> 16; uint32_t hi2 = src2 >> 16; \
+                                                                uint32_t lo1 = src1 & 0xffff; uint32_t lo2 = src2 & 0xffff; \
+                                                                uint32_t high = hi1 * hi2; uint32_t mid1 = hi1 * lo2; \
+                                                                uint32_t mid2 = lo1 * hi2; uint32_t low = lo1 * lo2;  \
+                                                                uint32_t carry = (low >> 16) + (mid1 & 0xffff) + (mid2 & 0xffff); \
+                                                                R(rd) = high + (mid2 >> 16) + (mid1 >> 16) + (carry >> 16));
   INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak , N, NEMUTRAP(s->pc, R(10))); // R(10) is $a0
   INSTPAT("??????? ????? ????? ??? ????? ????? ??", inv    , N, INV(s->pc));
   INSTPAT_END();
