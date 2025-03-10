@@ -108,10 +108,20 @@ module icache (
 
   `ifdef CONFIG_TRACE_PERFORMANCE
     import "DPI-C"  function  void  hit_cnt();
+    import "DPI-C"  function  void  miss_count();
+    import "DPI-C"  function  void  penalty_count();
     always @*
     begin
       if (hit && rreq_i) begin
         hit_cnt();
+      end
+      if (!hit && rreq_i) begin
+        miss_count();
+      end
+    end
+    always @ (posedge clock) begin
+      if (mshr != READY) begin
+        penalty_count();
       end
     end
   `endif

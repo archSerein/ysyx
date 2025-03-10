@@ -30,6 +30,8 @@ int64_t jump_inst_cnt = 0;
 int64_t default_inst_cnt = 0;
 int64_t mem_cycle_cnt = 0;
 int64_t hit_counter = 0;
+int64_t miss_cnt = 0;
+int64_t penalty_cnt = 0;
 
 extern "C" void ending(int num) { e = num; }
 extern "C" void putch(int ch) { putchar(ch); }
@@ -131,6 +133,7 @@ sim_exit(){
         fprintf(fp, "DEFAULT Instructions Ratio: %.04f", default_inst_cnt / total_inst);
         fprintf(fp, "Memory Access Cycle: %ld, average memory access cycle: %.04f", mem_cycle_cnt, (double)mem_cycle_cnt / lsu_load_cnt);
         fprintf(fp, "icache hit Ratio: %.04f", (double)hit_counter / inst_cnt);
+        fprintf(fp, "Average Memory Access Time: %.04f", (1 - (double)hit_counter / inst_cnt) * (double)penalty_cnt / miss_cnt + 1);
         fprintf(fp, "综合面积: 41815.200000um^2, 频率: 455MHz");
         fclose(fp);
     #endif // CONFIG_TRACE_PERFORMANCE
@@ -296,6 +299,12 @@ extern "C" void mem_cycle_count(void) {
 }
 extern "C" void hit_cnt(void) {
   ++hit_counter;
+}
+extern "C" void miss_count() {
+  ++miss_cnt;
+}
+extern "C" void penalty_count() {
+  ++penalty_cnt;
 }
 void cycle_count(void) {
     ++cycle_cnt;
