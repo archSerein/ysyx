@@ -11,8 +11,6 @@ module clint (
     output  [31:0]          rdata_o
 );
 
-    // high: 0xa000004c
-    // low:  0xa0000048
     reg     [63:0]          mtime;
     always @(posedge clock) begin
         if (reset) begin

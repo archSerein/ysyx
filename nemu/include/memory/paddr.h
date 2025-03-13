@@ -39,7 +39,9 @@ static inline bool in_pmem(paddr_t addr) {
   bool in_psram = addr >= 0x80000000 && addr <= 0x80ffffff;
   bool in_sram = addr >= 0x0f000000 && addr <= 0x0f001fff;
   bool in_sdram = addr >= 0xa0000000 && addr <= 0xbfffffff;
-  return in_mrom || in_sram || in_psram || in_sdram;
+  bool in_uart  = addr >= 0x10000000 && addr <= 0x10002fff;
+  bool in_clint = addr >= 0x02000048 && addr <= 0x0200004c;
+  return in_mrom || in_sram || in_psram || in_sdram || in_uart || in_clint;
 }
 #else
 static inline bool in_pmem(paddr_t addr) {

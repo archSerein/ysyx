@@ -136,6 +136,7 @@ sim_exit(){
         fprintf(fp, "Average Memory Access Time: %.04f", (1 - (double)hit_counter / inst_cnt) * (double)penalty_cnt / miss_cnt + 1);
         fprintf(fp, "综合面积: 41815.200000um^2, 频率: 455MHz");
         fclose(fp);
+        printf("hit: %ld, miss: %ld\n", hit_counter, miss_cnt);
     #endif // CONFIG_TRACE_PERFORMANCE
 }
 

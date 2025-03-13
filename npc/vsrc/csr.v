@@ -75,7 +75,7 @@
 
     always @(posedge clock) begin
         if (reset) begin
-            MARCHID <= 32'h150be98;
+            MARCHID <= 32'h17dc6a3;
         end
     end
 

@@ -24,10 +24,14 @@
     uint8_t *sram = NULL;
     uint8_t *psram = NULL;
     uint8_t *sdram = NULL;
+    uint8_t *uart = NULL;
+    uint8_t *clint = NULL;
     static uint32_t sram_size = 0x2000;
     static uint32_t psram_size = 0x1000000;
     static uint32_t memsize = CONFIG_MSIZE;
     static uint32_t sdram_size = 0x2000000;
+    static uint32_t uart_size = 0x3000;
+    static uint32_t clint_size = 0x8;
   #else
     static uint32_t memsize = CONFIG_MSIZE;
   #endif
@@ -43,6 +47,8 @@ static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
     if (paddr >= 0x80000000 && paddr <= 0x80ffffff) return psram + paddr - 0x80000000;
     if (paddr >= 0x0f000000 && paddr <= 0x0f001fff) return sram + paddr - 0x0f000000;
     if (paddr >= 0xa0000000 && paddr <= 0xbfffffff) return sdram + paddr - 0xa0000000;
+    if (paddr >= 0x10000000 && paddr <= 0x10002fff) return uart + paddr - 0x10000000;
+    if (paddr >= 0x02000048 && paddr <= 0x0200004c) return clint + paddr - 0x02000048;
     return NULL;
   }
   paddr_t host_to_guest(uint8_t *haddr) {
@@ -50,6 +56,8 @@ static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
     if (haddr >= sram && haddr < sram + sram_size) return haddr - sram + 0x0f000000;
     if (haddr >= psram && haddr < psram + psram_size) return haddr - psram + 0x80000000;
     if (haddr >= sdram && haddr < sdram + sdram_size) return haddr - sdram + 0xa0000000;
+    if (haddr >= uart && haddr < uart + uart_size) return haddr - uart + 0x10000000;
+    if (haddr >= clint && haddr < clint + clint_size) return haddr - clint + 0x02000048;
     return 0;
   }
 #else
@@ -83,9 +91,13 @@ void init_mem() {
   sram = malloc(sram_size);
   psram = malloc(psram_size);
   sdram = malloc(sdram_size);
+  uart = malloc(uart_size);
+  clint = malloc(clint_size);
   assert(sram);
   assert(psram);
   assert(sdram);
+  assert(uart);
+  assert(clint);
   // IFDEF(CONFIG_MEM_RANDOM, memset(sram, rand(), sram_size));
 #endif
   IFDEF(CONFIG_MEM_RANDOM, memset(pmem, rand(), memsize));
