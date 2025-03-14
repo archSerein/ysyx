@@ -1,37 +1,46 @@
 `include "./include/generated/autoconf.vh"
-module icache (
-  input             clock,
-  input             reset,
-  input             rreq_i,
-  input [31:0]      raddr_i,
-  output            rready_o,
-  output  [31:0]    rdata_o,
-  output            rvalid_o,
+module icache #(
+  parameter BLOCK = 16,
+  parameter WAYS  = 4,
+  parameter WIDTH = 32 ) (
+  input                 clock,
+  input                 reset,
+  input                 rreq_i,
+  input [WIDTH-1:0]     raddr_i,
+  output                rready_o,
+  output [WIDTH-1:0]    rdata_o,
+  output                rvalid_o,
 
-  input             icache_arready_i,
-  output            icache_arvalid_o,
-  output  [31:0]    icache_araddr_o,
+  input                 icache_arready_i,
+  output                icache_arvalid_o,
+  output  [WIDTH-1:0]   icache_araddr_o,
 
-  input             icache_rvalid_i,
-  input   [31:0]    icache_rdata_i,
-  input   [ 1:0]    icache_rresp_i,
-  output            icache_rready_o
+  input                 icache_rvalid_i,
+  input   [WIDTH-1:0]   icache_rdata_i,
+  input   [ 1:0]        icache_rresp_i,
+  output                icache_rready_o
 );
 
-  reg [31:0]  dataArray[15:0];
-  reg [25:0]  tagArray[15:0];
-  reg         validArray[15:0];
-  reg [31:0]  miss_req_addr;
-  wire  [ 3:0] index;
-  wire  [ 1:0] offset;
-  wire  [25:0] tag;
-  wire  [ 3:0] miss_req_index;
-  wire  [25:0] miss_req_tag;
-  wire         hit;
+  parameter   word_bits   = 2;
+  parameter   offset_bits = $clog2(WAYS);
+  parameter   index_bits  = $clog2(BLOCK);
+  parameter   tag_bits    = WIDTH - index_bits - offset_bits - word_bits;
 
-  assign tag    = raddr_i[31: 6];
-  assign index  = raddr_i[ 5: 2];
-  assign offset = raddr_i[ 1: 0];
+  reg [WIDTH-1:0]          dataArray[BLOCK-1:0][WAYS-1:0];
+  reg [tag_bits-1:0]       tagArray[BLOCK-1:0][WAYS-1:0];
+  reg                      validArray[BLOCK-1:0][WAYS-1:0];
+  reg [WIDTH-1:0]          miss_req_addr;
+  wire  [index_bits-1:0]   index;
+  wire  [offset_bits-1:0]  offset;
+  wire  [tag_bits-1:0]     tag;
+  wire  [index_bits-1:0]   miss_req_index;
+  wire  [tag_bits-1:0]     miss_req_tag;
+  wire  [offset_bits-1:0]  miss_req_offset;
+  wire                     hit;
+
+  assign tag    = raddr_i[WIDTH-1: offset_bits+index_bits+word_bits];
+  assign index  = raddr_i[ offset_bits+index_bits+word_bits-1: offset_bits+word_bits];
+  assign offset = raddr_i[ offset_bits-1+word_bits: word_bits];
 
   localparam INST_OK      = 2'b00;
   localparam INST_EXOKAY  = 2'b01;
@@ -64,21 +73,23 @@ module icache (
   assign mshr_next_state          = {2{mshr == READY}} & ready_next_state |
                                     {2{mshr == SENDFILLREQ}} & WAITFILLRESP |
                                     {2{mshr == WAITFILLRESP}} & waitfillresp_next_state;
-  assign hit                      = tag == tagArray[index]  &&  validArray[index] && rreq_i;
+
+  assign hit                      = tagArray[index][offset] == tag &&
+                                    validArray[index][offset_bits] && rreq_i;
 
   always @ (posedge clock) begin
     if (fill_data_valid && !uncache_addr) begin
-      dataArray[miss_req_index]  <= icache_rdata_i;
+      dataArray[miss_req_index][miss_req_offset]  <= icache_rdata_i;
     end
   end
   always @ (posedge clock) begin
     if (fill_data_valid && !uncache_addr) begin
-      tagArray[miss_req_index]   <= miss_req_tag;
+      tagArray[miss_req_index][miss_req_offset]   <= miss_req_tag;
     end
   end
   always @ (posedge clock) begin
     if (fill_data_valid && !uncache_addr) begin
-      validArray[miss_req_index] <= 1'b1;
+      validArray[miss_req_index][miss_req_offset] <= 1'b1;
     end
   end
   always @ (posedge clock) begin
@@ -93,14 +104,15 @@ module icache (
     end
   end
 
-  assign miss_req_tag             = miss_req_addr[31:6];
-  assign miss_req_index           = miss_req_addr[ 5:2];
+  assign miss_req_tag             = miss_req_addr[WIDTH-1: offset_bits+index_bits+word_bits];
+  assign miss_req_index           = miss_req_addr[ offset_bits+index_bits+word_bits-1: offset_bits+word_bits]; 
+  assign miss_req_offset          = miss_req_addr[ offset_bits-1+word_bits: word_bits];
   assign fill_data_valid          = mshr == WAITFILLRESP && icache_rvalid_i && (icache_rresp_i == INST_OK || icache_rresp_i == INST_EXOKAY);
   assign uncache_addr             = miss_req_addr <= 32'h0f002000 && miss_req_addr >= 32'h0f000000;
   assign access_data_fault        = mshr == WAITFILLRESP && icache_rvalid_i && (icache_rresp_i == INST_DECERR || icache_rresp_i == INST_SLVERR);
   assign rready_o                 = mshr == READY;
   assign rvalid_o                 = hit || fill_data_valid;
-  assign rdata_o                  = hit ? dataArray[index] : icache_rdata_i;
+  assign rdata_o                  = hit ? dataArray[index][offset] : icache_rdata_i;
 
   assign icache_rready_o          = mshr == WAITFILLRESP;
   assign icache_araddr_o          = miss_req_addr;
