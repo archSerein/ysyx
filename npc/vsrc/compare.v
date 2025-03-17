@@ -1,49 +1,54 @@
-module compare (
+module compare(
     input [31:0] compare_a_i,
     input [31:0] compare_b_i,
     input [2:0] compare_fn_i,
     output      compare_o
 );
-
-    wire [31:0] x = compare_a_i;
-    wire [31:0] y = compare_b_i;
+    wire [31:0] a = compare_a_i;
+    wire [31:0] b = compare_b_i;
     wire [2:0] fn = compare_fn_i;
 
-    wire [31:0] arith_result;
-    wire [2:0] arith_flag;
-    
-    arith arith_module (
-        .AFN(1'b1),
-        .arith_a_i(x),
-        .arith_b_i(y),
-        .arith_o(arith_result),
-        .arith_flag_o(arith_flag)
-    );
+    wire [31:0] gt_bits;   // a > b
+    wire [31:0] lt_bits;   // a < b
+    wire [31:0] neq_bits;  // a != b per bit
+    wire [31:0] lt_mask;
+    wire        lt;
 
-    /*
-    assign result = (fn == 3'b000) ? ZF :   // equal 
-                    (fn == 3'b001) ? ~ZF :  // not equal
-                    (fn == 3'b010) ? (~NF & ~VF) | (NF & VF) :  // greater than or equal to (signed)
-                    (fn == 3'b011) ? NF :   // less than (signed)
-                    (fn == 3'b100) ? CF & ~ZF :   // greater than (unsigned)
-                    (fn == 3'b101) ? ~CF :   // less than (unsigned)
-                    (fn == 3'b110) ? CF :    // greater than or equal to (unsigned) 
-                    VF;            // undifined -> overflow
-    */
+    assign gt_bits = a & ~b;
+    assign lt_bits = ~a & b;
+    assign neq_bits = a ^ b;
 
-    wire ZF, NF, VF, CF;
-    assign ZF = (|arith_result) ? 1'b0 : 1'b1;
-    assign NF = (arith_result[31] == 1'b1) ? 1'b1 : 1'b0;
-    assign VF = (~(x[31] ^ y[31] ^ 1'b1)) & (x[31] ^ arith_result[31]);
-    assign CF = arith_flag[2] | (arith_flag[1] & arith_flag[0]);
+    // Create prefix compare tree logic to decide the first differing bit
+    assign lt_mask[31] = lt_bits[31];
+    genvar i;
+    generate
+        for (i = 30; i >= 0; i = i - 1) begin : lt_tree
+            wire higher_bits_equal;
+            assign higher_bits_equal = ~(|neq_bits[31:i+1]);
+            assign lt_mask[i] = lt_bits[i] & higher_bits_equal;
+        end
+    endgenerate
 
-    assign compare_o =  (fn == 3'b000) & ZF |
-                        (fn == 3'b001) & ~ZF |
-                        (fn == 3'b010) & ((~NF & ~VF) | (NF & VF)) |
-                        (fn == 3'b011) & NF |
-                        (fn == 3'b100) & (CF & ~ZF) |
-                        (fn == 3'b101) & ~CF |
-                        (fn == 3'b110) & CF |
-                        (fn == 3'b111) & VF;
+    assign lt = |lt_mask; // if any lt_mask bit is high, a < b
 
+    wire equal, signed_less, unsigned_less;
+    assign equal = !(|neq_bits);
+    assign signed_less = (a[31] & !b[31]) | (a[31] == b[31] & lt);
+    assign unsigned_less = lt;
+
+    wire equal_or_not;
+    wire less_than_or_not_signed;
+    wire less_or_greater_unsigned;
+    wire not_less_unsigned;
+    assign equal_or_not = fn[0] ? !equal : equal;
+    assign less_than_or_not_signed = fn[0] ? signed_less : !signed_less;
+    assign less_or_greater_unsigned = fn[0] ? unsigned_less : !unsigned_less && !equal;
+    assign not_less_unsigned = !fn[0] && !unsigned_less;
+
+    wire equal_or_signed;
+    wire unsigned_compare;
+    assign equal_or_signed = fn[1] ? less_than_or_not_signed : equal_or_not;
+    assign unsigned_compare = fn[1] ? not_less_unsigned : less_or_greater_unsigned;
+
+    assign compare_o = fn[2] ? unsigned_compare : equal_or_signed;
 endmodule

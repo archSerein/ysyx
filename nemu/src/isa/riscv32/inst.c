@@ -45,7 +45,7 @@ enum {
                           case 0x341: t = cpu.csr[MEPC]; break; \
                           case 0x305: t = cpu.csr[MTVEC]; break; \
                           case 0xf11: t = 0x78797379; break;  \
-                          case 0xf12: t = 0x150be98;  break;  \
+                          case 0xf12: t = 0x017dc6a3;  break;  \
                           default: ; break; \
                       } \
                     } while(0)

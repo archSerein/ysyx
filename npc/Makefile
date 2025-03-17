@@ -98,11 +98,12 @@ gdb: $(BIN)
 DATA_DIR = ./performance
 FILE_ID := $(shell expr $(shell ls -1 $(DATA_DIR) 2>/dev/null | wc -l) + 1)
 
+INFO ?=
 perf:
 	python3 data_processing.py
 	@cp ./performance-data.txt ./performance/performance-data-$(FILE_ID).txt
 	@git add ./performance/*
-	@git commit -m"update performance-table"
+	@git commit -m"update performance-table: $(INFO)"
 	@git push origin
 	@echo "update success"
 
