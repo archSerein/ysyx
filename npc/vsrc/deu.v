@@ -7,6 +7,7 @@ module deu (
     input                           rfu_valid_i,
     input  [`RFU_DEU_BUS_WIDTH-1:0] rfu_deu_bus_i,
     output [`DEU_EXU_BUS_WIDTH-1:0] deu_exu_bus_o,
+    output                          icache_flush,
     output                          valid_o
 );
 
@@ -107,6 +108,8 @@ module deu (
     wire            inst_csrrw;
     wire            inst_csrrs;
 
+    wire            inst_fence_i;
+
     assign deu_csr_addr   = deu_inst[31:20];
 
     assign deu_rs1        = deu_inst[19:15];
@@ -206,16 +209,14 @@ module deu (
     assign inst_csrrw     = deu_opcode == 7'b1110011 && deu_funct3 == 3'b001;
     assign inst_csrrs     = deu_opcode == 7'b1110011 && deu_funct3 == 3'b010;
 
+    assign inst_fence_i   = deu_opcode == 7'b0001111;
+
     assign deu_compare_fn = {3{inst_beq}} & 3'b000 |
                             {3{inst_bne}} & 3'b001 |
-                            {3{inst_blt}} & 3'b011 |
                             {3{inst_bge}} & 3'b010 |
-                            {3{inst_bltu}} & 3'b101 |
-                            {3{inst_bgeu}} & 3'b110 |
-                            {3{inst_slti}} & 3'b011 |
-                            {3{inst_sltiu}} & 3'b101 |
-                            {3{inst_slt}} & 3'b011 |
-                            {3{inst_sltu}} & 3'b101;
+                            {3{inst_blt | inst_slt | inst_slti}} & 3'b011 |
+                            {3{inst_bltu | inst_sltiu | inst_sltu}} & 3'b101 |
+                            {3{inst_bgeu}} & 3'b110;
 
     wire        deu_compare_result;
     wire        res_from_compare;
@@ -230,35 +231,17 @@ module deu (
     assign res_from_compare = inst_slt | inst_sltu | inst_slti | inst_sltiu;
 
     // control signal generation
-    wire [5:0] alu_op;
-    assign alu_op = {6{inst_auipc}} & 6'b110000 |
-                    {6{inst_jal  }} & 6'b110000 |
-                    {6{inst_jalr }} & 6'b110000 |
-                    {6{inst_lb   }} & 6'b110000 |
-                    {6{inst_lbu  }} & 6'b110000 |
-                    {6{inst_lh   }} & 6'b110000 |
-                    {6{inst_lhu  }} & 6'b110000 |
-                    {6{inst_lw   }} & 6'b110000 |
-                    {6{inst_sb   }} & 6'b110000 |
-                    {6{inst_sh   }} & 6'b110000 |
-                    {6{inst_sw   }} & 6'b110000 |
-                    {6{inst_addi }} & 6'b110000 |
-                    {6{inst_lui  }} & 6'b110000 |
-                    {6{inst_xori }} & 6'b010110 |
-                    {6{inst_ori  }} & 6'b011110 |
-                    {6{inst_andi }} & 6'b011000 |
-                    {6{inst_slli }} & 6'b100000 |
-                    {6{inst_srli }} & 6'b100001 |
-                    {6{inst_srai }} & 6'b100011 |
-                    {6{inst_add  }} & 6'b110000 |
-                    {6{inst_sub  }} & 6'b110001 |
-                    {6{inst_sll  }} & 6'b100000 |
-                    {6{inst_xor  }} & 6'b010110 |
-                    {6{inst_srl  }} & 6'b100001 |
-                    {6{inst_sra  }} & 6'b100011 |
-                    {6{inst_or   }} & 6'b011110 |
-                    {6{inst_and  }} & 6'b011000 |
-                    {6{deu_optype == `INST_B}} & 6'b110000;
+    wire [2:0] alu_op;
+    assign alu_op = {3{inst_auipc | inst_jal | inst_jalr | inst_lb | inst_lbu | inst_lh |
+                        inst_lhu | inst_lw | inst_sb | inst_sh | inst_sw | inst_addi |
+                        inst_lui | inst_add}} & 3'b000 |
+                    {3{inst_xori | inst_xor}} & 3'b111 |
+                    {3{inst_or | inst_ori}} & 3'b110 |
+                    {3{inst_and | inst_andi}} & 3'b101 |
+                    {3{inst_sll | inst_slli}} & 3'b010 |
+                    {3{inst_srl | inst_srli}} & 3'b100 |
+                    {3{inst_sra | inst_srai}} & 3'b011 |
+                    {3{inst_sub}} & 3'b001;
 
     wire src1_is_pc;
     assign src1_is_pc = deu_optype == `INST_J || deu_optype == `INST_B || inst_auipc;
@@ -330,6 +313,8 @@ module deu (
 
     wire  deu_res_from_pre = inst_jalr || inst_jal || inst_slti || inst_sltiu || inst_sltu || inst_slt || res_from_csr;
 
+    assign icache_flush = inst_fence_i;
+
     assign deu_exu_bus_o = {
         excp_flush,
         xret_flush,
@@ -350,7 +335,7 @@ module deu (
         deu_res_from_pre,
         deu_final_result
     };
-    /* 1 + 1 + 1 + 32 + 32 + 32 + 6 + 1 + 1 + 1 + 4 + 4 + 5 + 1 + 12 + 32 + 1 + 32 = 199 */
+    /* 1 + 1 + 1 + 32 + 32 + 32 + 3 + 1 + 1 + 1 + 4 + 4 + 5 + 1 + 12 + 32 + 1 + 32 = 196 */
 
     assign valid_o = valid;
 
@@ -372,7 +357,7 @@ module deu (
       assign is_branch_inst = inst_beq | inst_bne | inst_bge | inst_bltu | inst_blt | inst_bgeu;
       assign is_default_inst = inst_ecall | inst_mret | inst_ebreak;
       import "DPI-C" function void inst_type_count(input byte mask);
-      always @*
+      always @(posedge clock)
       begin
           if (valid) begin
               if (is_cal_inst) begin

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -56,7 +57,11 @@ int main(int argc, char *argv[], char *env[]) {
     // nvboard
     nvboard_init_warp();
 
+    auto start = std::chrono::high_resolution_clock::now();
     reset(1000);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    Log("cycle time: %ld ms", duration.count());
 
     #ifdef CONFIG_DIFFTEST
         init_difftest(ref_so_file, size, 1234);

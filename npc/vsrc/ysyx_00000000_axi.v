@@ -76,7 +76,11 @@ module ysyx_00000000_axi (
     wire                      icache_arvalid;
     wire      [31:0]          icache_araddr;
     wire                      icache_arready;
+    wire      [ 2:0]          icache_arsize;
+    wire      [ 1:0]          icache_arburst;
+    wire      [ 7:0]          icache_arlen;
 
+    wire                      icache_rlast;
     wire                      icache_rready;
     wire                      icache_rvalid;
     wire      [31:0]          icache_rdata;
@@ -112,7 +116,11 @@ module ysyx_00000000_axi (
         .icache_arvalid             (icache_arvalid),
         .icache_araddr              (icache_araddr),
         .icache_arready             (icache_arready),
+        .icache_arsize              (icache_arsize),
+        .icache_arburst             (icache_arburst),
+        .icache_arlen               (icache_arlen),
 
+        .icache_rlast               (icache_rlast),
         .icache_rready              (icache_rready),
         .icache_rvalid              (icache_rvalid),
         .icache_rdata               (icache_rdata),
@@ -142,6 +150,7 @@ module ysyx_00000000_axi (
         .lsu_bready                 (lsu_bready)
     );
 
+    wire is_clint;
     wire clint_arvlid;
     wire clint_arready;
     wire clint_rvalid;
@@ -153,175 +162,87 @@ module ysyx_00000000_axi (
 
         .arvalid_i        (clint_arvlid),
         .arready_o        (clint_arready),
-        .araddr_i         (raddr),
+        .araddr_i         (exu_araddr),
 
         .rvalid_o         (clint_rvalid),
         .rready_i         (clint_rready),
         .rdata_o          (clint_rdata)
     );
 
-    localparam      IDLE        = 2'b00;
-    localparam      HANDSHAKE   = 2'b01;
-    localparam      WAIT        = 2'b10;
-    localparam      DONE        = 2'b11;
-
-    localparam      INST        = 1'b0;
-    localparam      DATA        = 1'b1;
-
-    reg [ 1:0]        rstate;
-    reg [ 1:0]        wstate;
-
-    reg [31:0]        raddr;
-    reg [31:0]        rdata;
-    reg [ 2:0]        rsize;
-    reg [ 1:0]        rresp;
-    reg               inst_or_data;
-
-    reg [31:0]        waddr;
-    reg [31:0]        wdata;
-    reg [ 3:0]        wstrb;
-    reg [ 1:0]        bresp;
-
-    // wire [1:0]        next_rstate;
-    // wire [1:0]        next_wstate;
-    // wire [1:0]        idle_next_rstate;
-    // wire [1:0]        idle_next_wstate;
-    // wire [1:0]        handshake_next_rstate;
-    // wire [1:0]        handshake_next_wstate;
-    // wire [1:0]        wait_next_rstate;
-    // wire [1:0]        wait_next_wstate;
-    // wire [1:0]        done_next_rstate;
-    // wire [1:0]        done_next_wstate;
-
-    // assign idle_next_rstate = (icache_arvalid || exu_arvalid) ? HANDSHAKE : IDLE;
-    // assign idle_next_wstate = exu_awvalid ? HANDSHAKE : IDLE;
-    // assign handshake_next_rstate = io_master_arready
-
+    reg   [ 1:0]        grant;
+    wire  [ 1:0]        rreq;
+    wire  [ 1:0]        grant_q;
+    arbiter #(
+      .MASTER(2)
+    ) arbiter_module (
+      .clock          (clock),
+      .reset          (reset),
+      .rreq_i         (rreq),
+      .grant_o        (grant_q)
+    );
+    assign rreq = {icache_arvalid, exu_arvalid};
+    reg idle;
     always @(posedge clock) begin
-        if (reset) begin
-            rstate <= IDLE;
-            wstate <= IDLE;
-        end else begin
-            case (rstate)
-                IDLE: begin
-                    if (icache_arvalid || exu_arvalid) begin
-                        rstate  <= HANDSHAKE;
-                        raddr   <= icache_arvalid ? icache_araddr : exu_araddr;
-                        inst_or_data <= icache_arvalid ? INST : DATA;
-                        rsize  <= icache_arvalid ? 3'b010 : exu_arsize;
-                    end
-                end
-                HANDSHAKE: begin
-                    if (io_master_arready && !is_clint) begin
-                        rstate  <= WAIT;
-                    end else if (clint_arready && is_clint) begin
-                        rstate  <= WAIT;
-                    end
-                end
-                WAIT: begin
-                    if (io_master_rvalid && !is_clint) begin
-                        rstate  <= DONE;
-                        rdata   <= io_master_rdata;
-                        rresp   <= io_master_rresp;
-                    end else if (clint_rvalid && is_clint) begin
-                        rstate  <= DONE;
-                        rdata   <= clint_rdata;
-                        rresp   <= 2'b00;
-                    end
-                end
-                DONE: begin
-                    if (icache_rready || lsu_rready) begin
-                        rstate  <= IDLE;
-                        `ifdef CONFIG_RTL_MTRACE
-                            $display("read: addr = %h, data = %h, resp = %b", raddr, rdata, rresp);
-                        `endif
-                    end
-                end
-            endcase
-            case (wstate)
-                IDLE: begin
-                    if (exu_awvalid && exu_wvalid) begin
-                        wstate  <= HANDSHAKE;
-                        waddr   <= exu_awaddr;
-                        wdata   <= exu_wdata;
-                        wstrb   <= exu_wstrb;
-                        `ifdef CONFIG_RTL_MTRACE
-                            $display("write: addr = %h, data = %h, strb = %b", waddr, wdata, wstrb);
-                        `endif
-                    end
-                end
-                HANDSHAKE: begin
-                    if (io_master_awready && io_master_wready) begin
-                        wstate  <= WAIT;
-                    end
-                end
-                WAIT: begin
-                    if (io_master_bvalid) begin
-                        wstate  <= DONE;
-                        bresp   <= io_master_bresp;
-                    end
-                end
-                DONE: begin
-                    if (lsu_bready) begin
-                        wstate  <= IDLE;
-                    end
-                end
-            endcase
-        end
+      if (reset || io_master_rlast || (is_clint && clint_rvalid)) begin
+        idle <= 1'b1;
+      end else if (grant_q != 0 && idle) begin
+        idle <= 1'b0;
+      end
+    end
+    always @(posedge clock) begin
+      if (idle) begin
+          grant <= grant_q;
+      end
     end
 
-    wire is_clint;
-    assign is_clint = raddr >= 32'h02000000 && raddr <= 32'h0200ffff;
-    assign clint_arvlid = rstate == HANDSHAKE && is_clint;
-    assign clint_rready = rstate == WAIT && is_clint;
-    assign io_master_awvalid = wstate == HANDSHAKE;
-    assign io_master_awaddr = waddr;
+    assign is_clint = exu_araddr[31:16] == 16'h0200;
+    assign clint_arvlid = exu_arvalid && is_clint;
+    assign clint_rready = lsu_rready;
+
+    assign io_master_awvalid = exu_awvalid;
+    assign io_master_awaddr = exu_awaddr;
     assign io_master_awid = 4'b0000;
     assign io_master_awlen = 8'b00000000;
     assign io_master_awsize = 3'b000;
     assign io_master_awburst = 2'b00;
+    assign exu_awready = io_master_awready;
 
-    assign io_master_wvalid = wstate == HANDSHAKE;
-    assign io_master_wdata = wdata;
-    assign io_master_wstrb = wstrb;
+    assign io_master_wvalid = exu_wvalid;
+    assign exu_wready = io_master_wready;
+    assign io_master_wdata = exu_wdata;
+    assign io_master_wstrb = exu_wstrb;
     assign io_master_wlast = 1'b1;
 
-    assign io_master_bready = wstate == WAIT;
+    assign io_master_bready = lsu_bready;
+    assign lsu_bvalid = io_master_bvalid;
+    assign lsu_bresp = io_master_bresp;
 
-    assign io_master_arvalid = rstate == HANDSHAKE && !is_clint;
-    assign io_master_araddr = raddr;
+    assign io_master_arvalid = (grant[1] && icache_arvalid) || (exu_arvalid && !is_clint && grant[0]);
+    assign io_master_araddr = ({32{grant[1]}} & icache_araddr) | ({32{grant[0]}} & exu_araddr);
     assign io_master_arid = 4'b0000;
-    assign io_master_arlen = 8'b00000000;
-    assign io_master_arsize = rsize;
-    assign io_master_arburst = 2'b00;
+    assign io_master_arlen = grant[1] ? icache_arlen : 8'h0;
+    assign io_master_arsize = ({3{grant[1]}} & icache_arsize) | ({3{grant[0]}} & exu_arsize);
+    assign io_master_arburst = grant[1] ? icache_arburst : 2'b00;
+    assign exu_arready = io_master_arready && grant[0];
 
-    assign io_master_rready = rstate == WAIT && !is_clint;
+    assign io_master_rready = (grant[1] && icache_rready) | (grant[0] && lsu_rready);
 
+    assign icache_arready = io_master_arready && grant[1];
+    assign icache_rvalid = io_master_rvalid & grant[1];
+    assign icache_rdata = io_master_rdata;
+    assign icache_rresp = io_master_rresp;
+    assign icache_rlast = io_master_rlast;
+
+    assign lsu_rvalid = is_clint ? clint_rvalid : io_master_rvalid & grant[0];
+    assign lsu_rdata = is_clint ? clint_rdata : io_master_rdata;
+    assign lsu_rresp = is_clint ? 2'b00 : io_master_rresp;
+
+    // unused signals
     assign io_slave_awready = 1'b0;
     assign io_slave_wready = 1'b0;
     assign io_slave_bvalid = 1'b0;
     assign io_slave_arready = 1'b0;
     assign io_slave_rvalid = 1'b0;
-
-    assign icache_arready = rstate == IDLE;
-
-    assign icache_rvalid = rstate == DONE && inst_or_data == INST;
-    assign icache_rdata = rdata;
-    assign icache_rresp = rresp;
-
-    assign exu_arready = rstate == IDLE;
-
-    assign lsu_rvalid = rstate == DONE && inst_or_data == DATA;
-    assign lsu_rdata = rdata;
-
-    assign lsu_rresp = rresp;
-
-    assign exu_awready = wstate == IDLE;
-
-    assign exu_wready = wstate == IDLE;
-
-    assign lsu_bvalid = wstate == DONE;
-    assign lsu_bresp = bresp;
 
     assign io_slave_awready = 1'b0;
     assign io_slave_wready = 1'b0;

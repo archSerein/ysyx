@@ -27,7 +27,7 @@ module exu (
 
     reg valid;
     reg  [`DEU_EXU_BUS_WIDTH-1:0]     deu_exu_bus;
-    wire [ 5:0]           ex_alu_op;
+    wire [ 2:0]           ex_alu_op;
     wire [31:0]           ex_alu_src1;
     wire [31:0]           ex_alu_src2;
     wire                  ex_res_from_mem;
@@ -148,7 +148,7 @@ module exu (
         end
     end
 
-    assign arsize_o         = {{3{ex_mem_re == 4'b1111}} & 3'b010} | 
+    assign arsize_o         = {{3{ex_mem_re == 4'b1111}} & 3'b010} |
                               {{3{ex_mem_re == 4'b0011 || ex_mem_re == 4'b0111}} & 3'b001} |
                               {{3{ex_mem_re == 4'b0001 || ex_mem_re == 4'b0101}} & 3'b000};
     assign araddr_o         = ex_alu_result;

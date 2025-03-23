@@ -55,15 +55,16 @@ module wbu (
     assign finish_o = finish;
 
     always @(posedge clock) begin
-        if (reset) begin
+        if (reset || lsu_valid_i) begin
             finish <= 1'b1;
-            lsu_wbu_bus <= 0;
-        end else if (lsu_valid_i) begin
-            finish <= 1'b1;
-            lsu_wbu_bus <= lsu_wbu_bus_i;
         end else begin
             finish <= 1'b0;
         end
+    end
+    always @ (posedge clock) begin
+      if (lsu_valid_i) begin
+        lsu_wbu_bus <= lsu_wbu_bus_i;
+      end
     end
 
     assign wbu_ifu_bus_o = {

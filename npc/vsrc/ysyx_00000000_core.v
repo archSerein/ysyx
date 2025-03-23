@@ -8,7 +8,11 @@ module ysyx_00000000_core (
     input                       icache_arready,
     output                      icache_arvalid,
     output [31:0]               icache_araddr,
+    output [ 1:0]               icache_arburst,
+    output [ 7:0]               icache_arlen,
+    output [ 2:0]               icache_arsize,
 
+    input                       icache_rlast,
     output                      icache_rready,
     input                       icache_rvalid,
     input [31:0]                icache_rdata,
@@ -44,6 +48,7 @@ module ysyx_00000000_core (
     wire                             ifu_valid;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
+    wire                             icache_flush;
 
     wire                             arvalid;
     wire [31:0]                      araddr;
@@ -74,13 +79,19 @@ module ysyx_00000000_core (
       .raddr_i          (araddr),
       .rready_o         (arready),
 
+      .icache_flush     (icache_flush),
+
       .rdata_o          (rdata),
       .rvalid_o         (rvalid),
 
       .icache_arready_i (icache_arready),
       .icache_arvalid_o (icache_arvalid),
       .icache_araddr_o  (icache_araddr),
+      .icache_arburst_o (icache_arburst),
+      .icache_arlen_o   (icache_arlen),
+      .icache_arsize_o  (icache_arsize),
 
+      .icache_rlast_i   (icache_rlast),
       .icache_rvalid_i  (icache_rvalid),
       .icache_rdata_i   (icache_rdata),
       .icache_rresp_i   (icache_rresp),
@@ -130,6 +141,7 @@ module ysyx_00000000_core (
         .rfu_valid_i    (rfu_valid),
         .rfu_deu_bus_i  (rfu_deu_bus),
         .deu_exu_bus_o  (deu_exu_bus),
+        .icache_flush   (icache_flush),
         .valid_o        (deu_valid)
     );
 

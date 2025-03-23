@@ -62,7 +62,6 @@ module lsu (
         ms_jmp_target,
         ms_final_result
     } = exu_lsu_bus;
-        
 
     wire [ 7:0] ms_byteload;
     wire [15:0] ms_halfload;
@@ -70,16 +69,15 @@ module lsu (
     wire [31:0] ms_result;
     wire [31:0] final_result;
 
-    wire [31:0] rdata;
-    assign ms_byteload =   {8{ms_mem_addr_mask == 2'b00}} & rdata[7:0] |
-                           {8{ms_mem_addr_mask == 2'b01}} & rdata[15:8] |
-                           {8{ms_mem_addr_mask == 2'b10}} & rdata[23:16] |
-                           {8{ms_mem_addr_mask == 2'b11}} & rdata[31:24];
+    assign ms_byteload =   {8{ms_mem_addr_mask == 2'b00}} & rdata_i[7:0] |
+                           {8{ms_mem_addr_mask == 2'b01}} & rdata_i[15:8] |
+                           {8{ms_mem_addr_mask == 2'b10}} & rdata_i[23:16] |
+                           {8{ms_mem_addr_mask == 2'b11}} & rdata_i[31:24];
 
-    assign ms_halfload =   {16{ms_mem_addr_mask == 2'b00}} & rdata[15:0] |
-                           {16{ms_mem_addr_mask == 2'b10}} & rdata[31:16];
+    assign ms_halfload =   {16{ms_mem_addr_mask == 2'b00}} & rdata_i[15:0] |
+                           {16{ms_mem_addr_mask == 2'b10}} & rdata_i[31:16];
 
-    assign ms_wordload =   rdata;
+    assign ms_wordload =   rdata_i;
 
     assign ms_result   =    {32{ms_mem_re == 4'b1111}} & ms_wordload |
                             {32{ms_mem_re == 4'b0111}} & {{16{ms_halfload[15]}}, ms_halfload} |
@@ -95,73 +93,39 @@ module lsu (
         end
     end
 
-    localparam [ 1:0] IDLE      = 2'b00;
-    localparam [ 1:0] HANDLE    = 2'b01;
-    localparam [ 1:0] WAIT      = 2'b10;
-    localparam [ 1:0] FINISH    = 2'b11;
-    reg        [ 1:0] state;
-    reg        [31:0] rdata_r;
+    localparam IDLE      = 1'b0;
+    localparam WAIT      = 1'b1;
+    reg         state;
     `ifdef CONFIG_TRACE_PERFORMANCE
         import "DPI-C" function void lsu_load_store_count();
         import "DPI-C" function void mem_cycle_count();
-    `endif
-    always @(posedge clock) begin
-        if (reset) begin
-            state <= IDLE;
-            valid <= 1'b0;
-        end else begin
-            case (state)
-                IDLE: begin
-                    if (exu_valid_i) begin
-                        state <= HANDLE;
-                        `ifdef CONFIG_TRACE_PERFORMANCE
-                            mem_cycle_count();
-                        `endif
-                    end
-                end
-                HANDLE: begin
-                    `ifdef CONFIG_TRACE_PERFORMANCE
-                        mem_cycle_count();
-                    `endif
-                    if (|ms_mem_re || ms_mem_we) begin
-                        state <= WAIT;
-                    end
-                    if (!ms_mem_we && !(|ms_mem_re)) begin
-                        valid <= 1'b1;
-                        state <= FINISH;
-                    end
-                end
-                WAIT: begin
-                    `ifdef CONFIG_TRACE_PERFORMANCE
-                        mem_cycle_count();
-                    `endif
-                    if (bvalid_i || rvalid_i) begin
-                        state <= FINISH;
-                        valid <= 1'b1;
-                        if (rvalid_i && (rresp_i == INST_OK || rresp_i == INST_EXOKAY)) begin
-                            rdata_r <= rdata_i;
-                        end else if (rvalid_i) begin
-                            $display("fault response from memory");
-                            $finish;
-                        end
-                        `ifdef CONFIG_TRACE_PERFORMANCE
-                            lsu_load_store_count();
-                        `endif
-                    end
-                end
-                FINISH: begin
-                    `ifdef CONFIG_TRACE_PERFORMANCE
-                        mem_cycle_count();
-                    `endif
-                    valid <= 1'b0;
-                    state <= IDLE;
-                end
-            endcase
+        always @ (posedge clock) begin
+          if (state == WAIT && (bvalid_i || rvalid_i)) begin
+            lsu_load_store_count();
+          end
+          if (state == WAIT) begin
+            mem_cycle_count();
+          end
         end
+    `endif
+    wire        next_state;
+    wire        idle_next;
+    wire        wait_next;
+    always @(posedge clock) begin
+      if (reset)
+        state <= IDLE;
+      else
+        state <= next_state;
     end
+    assign idle_next = valid && (|ms_mem_re || ms_mem_we) ? WAIT : IDLE;
+    assign wait_next = bvalid_i || rvalid_i ? IDLE : WAIT;
+    assign next_state = state ? wait_next : idle_next;
 
-    assign rdata = rdata_r;
-    // assign rdata = {32{(rvalid_i && (rresp_i == INST_OK || rresp_i == INST_EXOKAY))}} & rdata_i;
+    wire        valid_q;
+    always @(posedge clock) begin
+      valid <= valid_q;
+    end
+    assign valid_q = exu_valid_i && !reset;
 
     assign lsu_wbu_bus_o = {
         ms_csr_we,
@@ -180,17 +144,14 @@ module lsu (
 
     // 写回复的处理
     always @(bvalid_i) begin
-        if (bresp_i == 2'b00) begin
-            // $display("write response okay");
-        end
-        else begin
-            $display("write response error, bresp: %b", bresp_i);
-            $finish;
-        end
+      if (bresp_i[1] == 1'b1) begin
+        $display("write response error, bresp: %b", bresp_i);
+        $finish;
+      end
     end
 
     assign bready_o = state == WAIT;
     assign rready_o = state == WAIT;
 
-    assign valid_o = valid;
+    assign valid_o = (valid && (!(|ms_mem_re | ms_mem_we))) || (state && (bvalid_i || rvalid_i));
 endmodule

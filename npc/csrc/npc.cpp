@@ -134,7 +134,7 @@ sim_exit(){
         fprintf(fp, "Memory Access Cycle: %ld, average memory access cycle: %.04f", mem_cycle_cnt, (double)mem_cycle_cnt / lsu_load_cnt);
         fprintf(fp, "icache hit Ratio: %.04f", (double)hit_counter / inst_cnt);
         fprintf(fp, "Average Memory Access Time: %.04f", (1 - (double)hit_counter / inst_cnt) * (double)penalty_cnt / miss_cnt + 1);
-        fprintf(fp, "综合面积: 41815.200000um^2, 频率: 455MHz");
+        fprintf(fp, "综合面积: 29033.900000um^2, 频率: 700MHz");
         fclose(fp);
         printf("hit: %ld, miss: %ld\n", hit_counter, miss_cnt);
     #endif // CONFIG_TRACE_PERFORMANCE

@@ -1,14 +1,11 @@
-`include "./include/generated/autoconf.vh"
 module icache (
   input                 clock,
   input                 reset,
   input                 rreq_i,
-  input [WIDTH-1:0]     raddr_i,
+  input [WIDTH-1:0]      raddr_i,
   output                rready_o,
-  output [WIDTH-1:0]    rdata_o,
+  output [WIDTH-1:0]     rdata_o,
   output                rvalid_o,
-
-  input                 icache_flush,
 
   input                 icache_arready_i,
   output  [ 7:0]        icache_arlen_o,
@@ -32,7 +29,7 @@ module icache (
 
   reg [WIDTH-1:0]          dataArray[BLOCK-1:0][OFFSET-1:0];
   reg [TAG-1:0]            tagArray[BLOCK-1:0];
-  reg [BLOCK-1:0]          validArray;
+  reg                      validArray[BLOCK-1:0];
   reg [WIDTH-1:0]          miss_req_addr;
   wire  [INDEX-1:0]        index;
   wire  [OFFSET-3:0]       offset;
@@ -91,7 +88,8 @@ module icache (
   always @ (posedge clock) begin
     if (!hit && rreq_i) begin
       fill_data_ptr <= offset;
-    end else if (fill_data_valid) begin
+    end
+    if (fill_data_valid) begin
       fill_data_ptr <= fill_data_ptr + 1;
     end
   end
@@ -106,17 +104,8 @@ module icache (
     end
   end
   always @ (posedge clock) begin
-    if (icache_flush) begin
-      validArray                 <= {BLOCK{1'b0}};
-    end else if (icache_rlast_i && fill_data_valid && !uncache_addr) begin
+    if (icache_rlast_i && fill_data_valid && !uncache_addr) begin
       validArray[miss_req_index] <= 1'b1;
-    end
-  end
-
-  always @ (posedge clock) begin
-    if (access_data_fault) begin
-      $display("access data fault");
-      $stop;
     end
   end
 
@@ -139,24 +128,4 @@ module icache (
   assign icache_arsize_o          = 3'b010;
   assign icache_arburst_o         = uncache_addr ? 2'b00 : 2'b10;
   assign icache_arlen_o           = 3;
-
-  `ifdef CONFIG_TRACE_PERFORMANCE
-    import "DPI-C"  function  void  hit_cnt();
-    import "DPI-C"  function  void  miss_count();
-    import "DPI-C"  function  void  penalty_count();
-    always @ (posedge clock)
-    begin
-      if (hit && rreq_i) begin
-        hit_cnt();
-      end
-      if (!hit && rreq_i) begin
-        miss_count();
-      end
-    end
-    always @ (posedge clock) begin
-      if (mshr != READY) begin
-        penalty_count();
-      end
-    end
-  `endif
 endmodule

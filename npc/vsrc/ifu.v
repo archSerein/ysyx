@@ -26,17 +26,8 @@ module ifu (
     localparam NPC_RESET_PC     = 32'h80000000;
 
     reg  [31:0] ifu_pc;
-    // 实例化一个加法器用来作为 pc 的自增
     wire [31:0] snpc;
-    arith pc_arith (
-        .arith_a_i(ifu_pc),
-        .arith_b_i(32'h4),
-        .AFN(1'b0),
-        .arith_o(snpc),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .arith_flag_o()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
+    assign snpc = ifu_pc + 4;
 
     wire        jmp_flag;
     wire        xret_flush;
@@ -76,7 +67,7 @@ module ifu (
             `else
               ifu_pc <= NPC_RESET_PC;
             `endif
-        end else if (arready_i && rreq) begin
+        end else if (rreq && arready_i) begin
             // 握手成功, 传递的数据有效
             rreq  <= 1'b0;
         end else if (!rreq && wbu_finish_i) begin
@@ -103,9 +94,9 @@ module ifu (
     `endif
     `ifdef CONFIG_TRACE_PERFORMANCE
         import "DPI-C" function void inst_count();
-        always @*
+        always @(posedge clock)
         begin
-            if (rreq && arready_i)
+            if (started && wbu_finish_i)
                 inst_count();
         end
     `endif
@@ -115,6 +106,6 @@ module ifu (
     assign arvalid_o = rreq;
 
     assign ifu_rfu_bus_o = {ifu_pc, snpc};
-    assign valid_o = arready_i && rreq;
+    assign valid_o = rreq;
 
 endmodule
