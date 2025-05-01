@@ -46,7 +46,7 @@ void    init_difftest(const char *ref_so_file, long img_size, int port);
 void    difftest_step(vaddr_t pc);
 
 // npc.cpp
-extern "C" void is_difftest(char);
+extern "C" void is_difftest(char, int, char);
 bool            is_difftest_cycle();
 extern "C" void inst_count(void);
 void            cycle_count(void);

@@ -4,8 +4,10 @@
 module exu (
     input                               clock,
     input                               reset,
-    input                               deu_valid_i,
-    input  [`DEU_EXU_BUS_WIDTH-1:0]     deu_exu_bus_i,
+    input                               rfu_valid_i,
+    input  [`RFU_EXU_BUS_WIDTH-1:0]     rfu_exu_bus_i,
+    // input  [ 4:0]                       rfu_excp_bus_i,
+    output                              exu_ready_o,
     // axi read addr channel
     input                               arready_i,
     output [31:0]                       araddr_o,
@@ -21,51 +23,74 @@ module exu (
     output [ 3:0]                       wstrb_o,
     output                              wvalid_o,
 
+    output                              branch_flush,
+    output [31:0]                       branch_target,
+
+    input                               lsu_ready_i,
     output [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_o,
+    // output [ 6:0]                       exu_excp_bus_o,
+    output [ 4:0]                       exu_rd_o,
+    output [11:0]                       exu_csr_addr_o,
     output                              valid_o
 );
 
     reg valid;
-    reg  [`DEU_EXU_BUS_WIDTH-1:0]     deu_exu_bus;
-    wire [ 2:0]           ex_alu_op;
+    reg  [`RFU_EXU_BUS_WIDTH-1:0]     rfu_exu_bus;
+    // reg  [ 4:0]                       rfu_excp_bus;
+    wire [ 4:0]           ex_rd;
+    wire                  ex_branch;
     wire [31:0]           ex_alu_src1;
     wire [31:0]           ex_alu_src2;
     wire                  ex_res_from_mem;
-    wire                  ex_gr_we;
-    wire                  ex_csr_we;
-    wire [ 4:0]           ex_rd;
-    wire                  ex_xret_flush;
-    wire                  ex_excp_flush;
-    wire [11:0]           ex_csr_addr;
-    wire                  ex_jmp_flag;
-    wire                  ex_break_signal;
+    wire [31:0]           ex_final_result;
     wire [ 3:0]           ex_mem_re;
     wire [ 3:0]           ex_mem_we;
+    wire                  ex_gr_we;
+    wire                  ex_csr_we;
+    wire [11:0]           ex_csr_addr;
     wire [31:0]           ex_csr_wdata;
-    wire [31:0]           ex_rs2_value;
+    wire [ 2:0]           ex_alu_op;
+    wire                  ex_xret_flush;
+    wire                  ex_excp_flush;
+    wire                  ex_break_signal;
     wire                  ex_res_from_pre;
-    wire [31:0]           ex_final_result;
+    wire [31:0]           ex_snpc;
+    wire [31:0]           ex_rs2_value;
+    wire [31:0]           ex_pc;
+
+    always @ (posedge clock) begin
+      if (rfu_valid_i && exu_ready_o) begin
+        rfu_exu_bus <= rfu_exu_bus_i;
+      end
+    end
+    // always @ (posedge clock) begin
+    //   if (rfu_valid_i && exu_ready_o) begin
+    //     rfu_excp_bus <= rfu_excp_bus_i;
+    //   end
+    // end
 
     assign {
-        ex_excp_flush,
-        ex_xret_flush,
-        ex_break_signal,
-        ex_alu_src1,
-        ex_alu_src2,
-        ex_rs2_value,
-        ex_alu_op,
-        ex_res_from_mem,
-        ex_gr_we,
-        ex_csr_we,
-        ex_mem_re,
-        ex_mem_we,
-        ex_rd,
-        ex_jmp_flag,
-        ex_csr_addr,
-        ex_csr_wdata,
-        ex_res_from_pre,
-        ex_final_result
-    } = deu_exu_bus;
+      ex_pc,
+      ex_rd,
+      ex_branch,
+      ex_alu_op,
+      ex_alu_src1,
+      ex_alu_src2,
+      ex_rs2_value,
+      ex_res_from_mem,
+      ex_res_from_pre,
+      ex_final_result,
+      ex_mem_re,
+      ex_mem_we,
+      ex_gr_we,
+      ex_csr_we,
+      ex_csr_addr,
+      ex_csr_wdata,
+      ex_snpc,
+      ex_xret_flush,
+      ex_excp_flush,
+      ex_break_signal
+    } = rfu_exu_bus;
 
     wire [31:0] ex_alu_result;
     alu alu_module (
@@ -81,16 +106,16 @@ module exu (
     assign mem_addr_mask = ex_alu_result[1:0];
 
     assign sb_we = {
-                    mem_addr_mask == 2'b11,
-                    mem_addr_mask == 2'b10,
-                    mem_addr_mask == 2'b01,
-                    mem_addr_mask == 2'b00
+                    mem_addr_mask[1] && mem_addr_mask[0],
+                    mem_addr_mask[1] && !mem_addr_mask[0],
+                    !mem_addr_mask[1] && mem_addr_mask[0],
+                    !mem_addr_mask[1] && !mem_addr_mask[0]
                 };
     assign sh_we = {
-                    mem_addr_mask == 2'b10,
-                    mem_addr_mask == 2'b10,
-                    mem_addr_mask == 2'b00,
-                    mem_addr_mask == 2'b00
+                    mem_addr_mask[1] && !mem_addr_mask[0],
+                    mem_addr_mask[1] && !mem_addr_mask[0],
+                    !mem_addr_mask[1] && !mem_addr_mask[0],
+                    !mem_addr_mask[1] && !mem_addr_mask[0]
                 };
 
     wire [ 3:0] mem_we_mask;
@@ -111,13 +136,17 @@ module exu (
         {16{sh_we[3]}} & ex_rs2_value[15:0],
         {16{sh_we[0]}} & ex_rs2_value[15:0]
     };
-    wire [31:0] ex_jmp_target;
-    assign ex_jmp_target = ex_alu_result;
+
+    assign branch_target = ex_alu_result;
+    assign branch_flush = ex_branch && (|(ex_alu_result ^ ex_snpc)) && valid;
 
     wire [31:0] final_result;
     assign final_result = ex_res_from_pre ? ex_final_result : ex_alu_result;
 
+    wire is_skip_difftest;
     assign exu_lsu_bus_o = {
+        is_skip_difftest,
+        ex_pc,
         ex_csr_wdata,           
         ex_csr_we,              
         mem_addr_mask,          
@@ -130,22 +159,30 @@ module exu (
         ex_excp_flush,          
         ex_xret_flush,          
         ex_break_signal,        
-        ex_jmp_flag,            
-        ex_jmp_target,
         final_result
     };
-    /* 32 + 1 + 2 + 4 + 1 + 12 + 1 + 1 + 5 + 1 + 1 + 1 + 1 + 32 + 32 = 127*/
+    /* 32 + 1 + 2 + 4 + 1 + 12 + 1 + 1 + 5 + 1 + 1 + 1 + 32 = 94*/
 
     wire    idle;
+    wire    no_mem_req;
+    wire    handshake_success;
     always @(posedge clock) begin
         if (reset) begin
             valid <= 1'b0;
-        end else if (deu_valid_i) begin
+        end else if (rfu_valid_i) begin
             valid <= 1'b1;
-            deu_exu_bus <= deu_exu_bus_i;
-        end else if (idle) begin
+        end else if (idle && lsu_ready_i) begin
             valid <= 1'b0;
         end
+    end
+
+    reg         handshake_state;
+    always @ (posedge clock) begin
+      if (reset || (valid_o && lsu_ready_i)) begin
+          handshake_state <= 1'b0;
+      end else if (valid && handshake_success) begin
+          handshake_state <= 1'b1;
+      end
     end
 
     assign arsize_o         = {{3{ex_mem_re == 4'b1111}} & 3'b010} |
@@ -154,26 +191,42 @@ module exu (
     assign araddr_o         = ex_alu_result;
     assign awaddr_o         = ex_alu_result;
 
-    assign arvalid_o        = (|ex_mem_re) && valid;
-    assign awvalid_o        = (|ex_mem_we) && valid;
+    wire   request_valid    = valid && !handshake_state;
+    assign arvalid_o        = (|ex_mem_re) && request_valid;
+    assign awvalid_o        = (|ex_mem_we) && request_valid;
 
     // assign wdata_o          =   ex_rs2_value;
     assign wdata_o          =   ({32{ex_mem_we == 4'b1111}} & ex_rs2_value) |
                                 ({32{ex_mem_we == 4'b0011}} & mem_half_wdata) |
                                 ({32{ex_mem_we == 4'b0001}} & mem_byte_wdata); 
     assign wstrb_o          = mem_we_mask;
-    assign wvalid_o         = (|ex_mem_we) && valid;
+    assign wvalid_o         = (|ex_mem_we) && request_valid;
 
-    // 没有访存请求或者握手成功时, 有效数据会直接向下传递, 同时将 valid 置为 0,
-    // 表示后续的数据并不是有效的
-    assign idle = !(arvalid_o || awvalid_o || wvalid_o) || (arvalid_o && arready_i) || (awvalid_o && awready_i && wvalid_o && wready_i);
-    assign valid_o = valid;
+    // wire   load_addr_misalign;
+    // wire   store_amo_addr_misalign;
+    //
+    // assign load_addr_misalign = ex_mem_re[3] ? (ex_alu_result[1] | ex_alu_result[0]) :
+    //                             ex_mem_re[1] ? ex_alu_result[0] :
+    //                             1'b0;
+    // assign store_amo_addr_misalign = ex_mem_we[3] ? (ex_alu_result[1] | ex_alu_result[0]) :
+    //                                  ex_mem_we[1] ? ex_alu_result[0] :
+    //                                  1'b0;
 
+    assign no_mem_req = !(arvalid_o || awvalid_o || wvalid_o);
+    assign handshake_success = (arvalid_o && arready_i) || (awvalid_o && awready_i && wvalid_o && wready_i);
+    assign idle = no_mem_req || handshake_success || handshake_state;
+    assign valid_o = valid && idle;
+    assign exu_ready_o = !valid || (valid_o && lsu_ready_i);
+    assign exu_rd_o = ex_rd;
+    assign exu_csr_addr_o = ex_csr_addr;
+    // assign exu_excp_bus_o = {store_amo_addr_misalign, load_addr_misalign, rfu_excp_bus};
+
+    assign is_skip_difftest = (awvalid_o || arvalid_o) && (ex_alu_result[31:16] == 16'h1000 || ex_alu_result[31:16] == 16'h0200);
     `ifdef CONFIG_TRACE_PERFORMANCE
         import "DPI-C" function void exu_alu_count();
-        always @*
+        always @(valid)
         begin
-            if (!ex_res_from_pre && !ex_res_from_mem && !ex_jmp_flag && valid)
+            if (!ex_res_from_pre && !ex_res_from_mem && !ex_branch && valid)
                 exu_alu_count();
         end
     `endif

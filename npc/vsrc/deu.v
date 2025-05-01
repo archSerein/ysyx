@@ -4,22 +4,28 @@
 module deu (
     input                           clock,
     input                           reset,
-    input                           rfu_valid_i,
-    input  [`RFU_DEU_BUS_WIDTH-1:0] rfu_deu_bus_i,
-    output [`DEU_EXU_BUS_WIDTH-1:0] deu_exu_bus_o,
+
+    input                           icu_valid_i,
+    input  [`ICU_DEU_BUS_WIDTH-1:0] icu_deu_bus_i,
+    // input  [ 1:0]                   icu_excp_bus_i,
+
+    output                          deu_ready_o,
+    output [`DEU_RFU_BUS_WIDTH-1:0] deu_rfu_bus_o,
+    // output [ 4:0]                   deu_excp_bus_o,
+
     output                          icache_flush,
+    input                           branch_flush,
+
+    input                           rfu_ready_i,
     output                          valid_o
 );
 
     reg valid;
-    reg [`RFU_DEU_BUS_WIDTH-1:0] rfu_deu_bus;
+    reg [`ICU_DEU_BUS_WIDTH-1:0] icu_deu_bus;
+    // reg [ 1:0]                   icu_excp_bus;
 
     wire [31:0] deu_pc;
-    wire [31:0] deu_rs1_value;
-    wire [31:0] deu_rs2_value;
-    wire [31:0] deu_csr_value;
     wire [31:0] deu_snpc;
-    wire [31:0] deu_inst;
 
     wire [ 4:0] deu_rs1;
     wire [ 4:0] deu_rs2;
@@ -37,27 +43,29 @@ module deu (
     wire [11:0] deu_csr_addr;
     wire [ 2:0] deu_compare_fn;
 
-    assign {
-        deu_snpc,
-        deu_pc,
-        deu_inst,
-        deu_rs1_value,
-        deu_rs2_value,
-        deu_csr_value
-    } = rfu_deu_bus;
+    wire [31:0] deu_inst;
+
+    assign { deu_pc, deu_snpc, deu_inst} = icu_deu_bus;
 
     always @ (posedge clock) begin
-      if (rfu_valid_i) begin
-        rfu_deu_bus <= rfu_deu_bus_i;
+      if (icu_valid_i && deu_ready_o) begin
+        icu_deu_bus <= icu_deu_bus_i;
       end
     end
+    // always @ (posedge clock) begin
+    //   if (icu_valid_i && deu_ready_o) begin
+    //     icu_excp_bus <= icu_excp_bus_i;
+    //   end
+    // end
 
     always @(posedge clock) begin
-        if (reset || !rfu_valid_i) begin
-            valid <= 1'b0;
-        end else if (rfu_valid_i) begin
-            valid <= 1'b1;
-        end
+      if (reset || branch_flush) begin
+        valid <= 1'b0;
+      end else if (icu_valid_i) begin
+        valid <= 1'b1;
+      end else if (valid_o && rfu_ready_i) begin
+        valid <= 1'b0;
+      end
     end
 
     // instruction
@@ -211,6 +219,24 @@ module deu (
 
     assign inst_fence_i   = deu_opcode == 7'b0001111;
 
+    wire          valid_inst;
+    assign valid_inst = inst_ecall | inst_ebreak | inst_mret |
+                      inst_lui | inst_auipc | inst_jal | inst_jalr |
+                      inst_lb | inst_lh | inst_lw | inst_lbu | inst_lhu |
+                      inst_sb | inst_sh | inst_sw |
+                      inst_addi | inst_xori | inst_ori | inst_andi |
+                      inst_slli | inst_srli | inst_srai |
+                      inst_add | inst_sub | inst_sll |
+                      inst_xor | inst_srl | inst_sra |
+                      inst_or  | inst_and |
+                      inst_beq | inst_bne |
+                      inst_blt | inst_bge |
+                      inst_bltu| inst_bgeu|
+                      inst_slti| inst_sltiu|
+                      inst_slt | inst_sltu |
+                      inst_csrrw | inst_csrrs |
+                      inst_fence_i;
+
     assign deu_compare_fn = {3{inst_beq}} & 3'b000 |
                             {3{inst_bne}} & 3'b001 |
                             {3{inst_bge}} & 3'b010 |
@@ -218,17 +244,11 @@ module deu (
                             {3{inst_bltu | inst_sltiu | inst_sltu}} & 3'b101 |
                             {3{inst_bgeu}} & 3'b110;
 
-    wire        deu_compare_result;
     wire        res_from_compare;
-    wire [31:0] compare_src2;
-    assign compare_src2 = (inst_sltiu | inst_slti) ? deu_imm : deu_rs2_value;
-    compare compare_module (
-        .compare_a_i(deu_rs1_value),
-        .compare_b_i(compare_src2),
-        .compare_fn_i(deu_compare_fn),
-        .compare_o(deu_compare_result)
-    );
     assign res_from_compare = inst_slt | inst_sltu | inst_slti | inst_sltiu;
+
+    wire        res_from_csr;
+    assign res_from_csr = inst_csrrw || inst_csrrs;
 
     // control signal generation
     wire [2:0] alu_op;
@@ -246,18 +266,24 @@ module deu (
     wire src1_is_pc;
     assign src1_is_pc = deu_optype == `INST_J || deu_optype == `INST_B || inst_auipc;
 
-    wire src1_is_zero;
-    assign src1_is_zero = inst_lui;
-
     wire src2_is_imm;
     assign src2_is_imm = deu_optype == `INST_I || deu_optype == `INST_S || deu_optype == `INST_B ||
                         deu_optype == `INST_U || deu_optype == `INST_J;
+
+    wire compare_src2_is_imm;
+    assign compare_src2_is_imm = inst_sltiu || inst_slti;
+
+    wire src2_is_csr;
+    assign src2_is_csr = inst_csrrs;
 
     wire res_from_mem;
     assign res_from_mem = inst_lb || inst_lh || inst_lw || inst_lbu || inst_lhu;
 
     wire res_from_csr;
     assign res_from_csr = inst_csrrw || inst_csrrs;
+
+    wire csr_op;
+    assign csr_op = inst_csrrw;
 
     wire xret_flush;
     assign xret_flush = inst_mret;
@@ -288,56 +314,57 @@ module deu (
                         {4{inst_sw}} & 4'b1111;
 
     wire [31:0] deu_src1;
-    wire [31:0] deu_src2;
-    assign deu_src1 =   {32{src1_is_pc}} & deu_pc |
-                        {32{src1_is_zero}} & 32'h0 |
-                        {32{!src1_is_pc & !src1_is_zero}} & deu_rs1_value;
-    assign deu_src2 =   {32{src2_is_imm}} & deu_imm |
-                        {32{inst_csrrs }} & deu_csr_value |
-                        {32{!src2_is_imm && !inst_csrrs}} & deu_rs2_value;
+    assign deu_src1 = src1_is_pc ? deu_pc : 32'h0;
 
-    wire deu_br_taken = (inst_beq | inst_bne | inst_blt | inst_bge | inst_bltu | inst_bgeu) &
-                    deu_compare_result;
+    wire src1_from_pre;
+    assign src1_from_pre = src1_is_pc || inst_lui;
+
+    wire deu_br_taken;
+    assign deu_br_taken = inst_beq || inst_bne || inst_blt || inst_bge || inst_bltu || inst_bgeu;
     
     wire jmp_flag;
-    assign jmp_flag = inst_jal || inst_jalr || deu_br_taken;
-
-    wire [31:0] deu_csr_wdata;
-    assign deu_csr_wdata =  {32{inst_csrrw}} & deu_rs1_value |
-                            {32{inst_csrrs}} & (deu_csr_value | deu_rs1_value);
-
-    wire [31:0] deu_final_result;
-    assign deu_final_result = {32{inst_jalr || inst_jal}} & deu_snpc |
-                              {32{inst_slti || inst_sltiu || inst_sltu || inst_slt}} & {31'b0, deu_compare_result} |
-                              {32{res_from_csr}}& deu_csr_value;
-
-    wire  deu_res_from_pre = inst_jalr || inst_jal || inst_slti || inst_sltiu || inst_sltu || inst_slt || res_from_csr;
+    assign jmp_flag = inst_jal || inst_jalr;
 
     assign icache_flush = inst_fence_i;
 
-    assign deu_exu_bus_o = {
-        excp_flush,
-        xret_flush,
-        break_signal,
-        deu_src1,
-        deu_src2,
-        deu_rs2_value,
-        alu_op,
-        res_from_mem,
-        gr_we,
-        csr_we,
-        deu_mem_re,
-        deu_mem_we,
-        deu_rd,
-        jmp_flag,
-        deu_csr_addr,
-        deu_csr_wdata,
-        deu_res_from_pre,
-        deu_final_result
+    assign deu_rfu_bus_o = {
+      deu_pc,
+      deu_rs1,
+      deu_rs2,
+      deu_rd,
+      deu_csr_addr,
+      deu_imm,
+      deu_compare_fn,
+      compare_src2_is_imm,
+      src2_is_imm,
+      src2_is_csr,
+      csr_op,
+      res_from_compare,
+      alu_op,
+      src1_from_pre,
+      res_from_mem,
+      res_from_csr,
+      xret_flush,
+      break_signal,
+      excp_flush,
+      gr_we,
+      csr_we,
+      deu_mem_re,
+      deu_mem_we,
+      jmp_flag,
+      deu_snpc,
+      deu_src1,
+      deu_br_taken
     };
-    /* 1 + 1 + 1 + 32 + 32 + 32 + 3 + 1 + 1 + 1 + 4 + 4 + 5 + 1 + 12 + 32 + 1 + 32 = 196 */
 
-    assign valid_o = valid;
+    assign valid_o = valid && !branch_flush;
+    assign deu_ready_o = !valid || (valid_o && rfu_ready_i);
+    // assign deu_excp_bus_o = {
+    //   inst_ecall,
+    //   inst_ebreak,
+    //   !valid_inst,
+    //   icu_excp_bus[1:0]
+    // };
 
     `ifdef CONFIG_TRACE_PERFORMANCE
       // performance counter
@@ -357,9 +384,11 @@ module deu (
       assign is_branch_inst = inst_beq | inst_bne | inst_bge | inst_bltu | inst_blt | inst_bgeu;
       assign is_default_inst = inst_ecall | inst_mret | inst_ebreak;
       import "DPI-C" function void inst_type_count(input byte mask);
+      import "DPI-C" function void total_inst_count();
+
       always @(posedge clock)
       begin
-          if (valid) begin
+          if (valid_o && rfu_ready_i) begin
               if (is_cal_inst) begin
                   inst_type_count(0);
               end else if (is_mem_inst) begin
@@ -373,7 +402,14 @@ module deu (
               end else if (is_default_inst) begin
                   inst_type_count(6);
               end
+              total_inst_count();
           end
       end
     `endif
+    import "DPI-C" function void get_inst(input int inst);
+    always @(posedge clock) begin
+      if (icu_valid_i && deu_ready_o) begin
+        get_inst(deu_inst);
+      end
+    end
 endmodule

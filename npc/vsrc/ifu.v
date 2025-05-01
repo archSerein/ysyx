@@ -5,107 +5,62 @@
 module ifu (
     input                               clock,
     input                               reset,
-    input                               wbu_finish_i,
-    input  [`WBU_IFU_BUS_WIDTH-1:0]     wbu_ifu_bus_i,     // 从 wbu 模块获取的数据, 分支或者异常
+    input  [`WBU_IFU_BUS_WIDTH-1:0]     wbu_ifu_bus_i,
 
     // csr register
     input  [`CSR_DATA_WIDTH-1:0]        csr_mtvec,
     input  [`CSR_DATA_WIDTH-1:0]        csr_mepc,
 
-    output [`IFU_RFU_BUS_WIDTH-1:0]     ifu_rfu_bus_o,
+    input                               branch_flush,
+    input  [31:0]                       branch_target,
 
     output                              valid_o,
-
-    // axi-lite access memory interface
-    output  [31:0]                      araddr_o,
-    output                              arvalid_o,
-    input                               arready_i
+    output [`IFU_ICU_BUS_WIDTH-1:0]     ifu_icu_bus_o,
+    output                              ifu_excp_bus_o,
+    input                               ready_i
 );
 
     localparam YSYXSOC_RESET_PC = 32'h30000000;
-    localparam NPC_RESET_PC     = 32'h80000000;
 
     reg  [31:0] ifu_pc;
     wire [31:0] snpc;
     assign snpc = ifu_pc + 4;
 
-    wire        jmp_flag;
     wire        xret_flush;
     wire        excp_flush;
-    wire [31:0] jmp_target;
 
-    // pre_if 阶段
-    assign {excp_flush, xret_flush, jmp_flag, jmp_target} = wbu_ifu_bus_i;
-    // dnpc 的选择逻辑
+    assign {excp_flush, xret_flush} = wbu_ifu_bus_i;
+
     wire [31:0] dnpc;
     assign dnpc =   excp_flush ? csr_mtvec :
                     xret_flush ? csr_mepc :
-                    jmp_flag ? jmp_target :
+                    branch_flush ? branch_target :
                     snpc;
 
-    // valid: 表示向下一个阶段传递的数据是否有效
-    // rreq: pc 有效但是握手没有完成需要将请求信号保持, 1->表示还有请求没有成
-    // 功发起, 0->表示所有请求都以发送成功
-    reg  rreq;
-    reg  started;
+    wire [31:0] next_pc;
+    assign next_pc = (reset) ? YSYXSOC_RESET_PC : dnpc;
 
+    wire handshake_succ;
+    reg  valid;
     always @ (posedge clock) begin
-        if (reset) begin
-            started <= 1'b0;
-        end else begin
-            started <= 1'b1;
+        if (handshake_succ || reset || branch_flush || excp_flush || xret_flush) begin
+          ifu_pc <= next_pc;
         end
     end
 
     always @ (posedge clock) begin
-        if (reset) begin
-            // 复位期间不发送取指请求
-            // 传递的数据无效
-            rreq  <= 1'b0;
-            `ifdef CONFIG_YSYXSOC
-              ifu_pc <= YSYXSOC_RESET_PC;
-            `else
-              ifu_pc <= NPC_RESET_PC;
-            `endif
-        end else if (rreq && arready_i) begin
-            // 握手成功, 传递的数据有效
-            rreq  <= 1'b0;
-        end else if (!rreq && wbu_finish_i) begin
-            // 发起新的请求
-            rreq  <= 1'b1;
-            if (started)
-                ifu_pc <= dnpc;
-        end
+      if (reset || branch_flush || excp_flush || xret_flush) begin
+        valid <= 1'b0;
+      end else if (ready_i) begin
+        valid <= 1'b1;
+      end else if (handshake_succ) begin
+        valid <= 1'b0;
+      end
     end
+    assign handshake_succ = valid && valid_o && ready_i;
 
-    `ifdef CONFIG_DIFFTEST
-        import "DPI-C" function void is_difftest(input byte difftest);
-        reg [ 7:0] difftest;
-        always @(posedge clock) begin
-            if (reset) begin
-                difftest <= 8'b0;
-            end else if (started && wbu_finish_i) begin
-                difftest <= 8'b1;
-            end else begin
-                difftest <= 8'b0;
-            end
-            is_difftest(difftest);
-        end
-    `endif
-    `ifdef CONFIG_TRACE_PERFORMANCE
-        import "DPI-C" function void inst_count();
-        always @(posedge clock)
-        begin
-            if (started && wbu_finish_i)
-                inst_count();
-        end
-    `endif
-
-    // 握手信号
-    assign araddr_o = ifu_pc;
-    assign arvalid_o = rreq;
-
-    assign ifu_rfu_bus_o = {ifu_pc, snpc};
-    assign valid_o = rreq;
+    assign ifu_icu_bus_o = {ifu_pc, snpc};
+    assign valid_o = valid && !branch_flush && !excp_flush && !xret_flush;
+    assign ifu_excp_bus_o = ifu_pc[1] || ifu_pc[0];
 
 endmodule

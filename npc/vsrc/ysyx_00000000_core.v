@@ -42,47 +42,53 @@ module ysyx_00000000_core (
     input [ 1:0]                lsu_bresp
 );
 
-    wire                             wbu_finish;
     wire [`WBU_IFU_BUS_WIDTH-1:0]    wbu_ifu_bus;
-    wire [`IFU_RFU_BUS_WIDTH-1:0]    ifu_rfu_bus;
+    wire [`IFU_ICU_BUS_WIDTH-1:0]    ifu_icu_bus;
     wire                             ifu_valid;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
     wire                             icache_flush;
 
-    wire                             arvalid;
-    wire [31:0]                      araddr;
-    wire                             arready;
+    wire                             icache_ready;
+    wire                             rfu_ready;
+
+    wire                             branch_flush;
+    wire [31:0]                      branch_target;
+
     ifu ifu_module (
         .clock          (clock),
         .reset          (reset),
-        .wbu_finish_i   (wbu_finish),
         .wbu_ifu_bus_i  (wbu_ifu_bus),
         // csr register
         .csr_mtvec      (csr_mtvec),
         .csr_mepc       (csr_mepc),
-        .ifu_rfu_bus_o  (ifu_rfu_bus),
 
-        .araddr_o       (araddr),
-        .arvalid_o      (arvalid),
-        .arready_i      (arready),
+        .ifu_icu_bus_o  (ifu_icu_bus),
 
+        .branch_flush   (branch_flush),
+        .branch_target  (branch_target),
+
+        .ready_i        (icache_ready),
         .valid_o        (ifu_valid)
     );
 
-    wire [31:0]                      rdata;
-    wire                             rvalid;
+    wire [`ICU_DEU_BUS_WIDTH-1:0]    icu_deu_bus;
+    wire                             icache_valid;
+    wire deu_ready;
     icache icache_module (
       .clock            (clock),
       .reset            (reset),
-      .rreq_i           (arvalid),
-      .raddr_i          (araddr),
-      .rready_o         (arready),
 
+      .ready_o          (icache_ready),
+      .ifu_valid_i      (ifu_valid),
+      .ifu_icu_bus_i    (ifu_icu_bus),
+
+      .branch_flush     (branch_flush),
       .icache_flush     (icache_flush),
 
-      .rdata_o          (rdata),
-      .rvalid_o         (rvalid),
+      .valid_o          (icache_valid),
+      .icu_deu_bus_o    (icu_deu_bus),
+      .deu_ready_i      (deu_ready),
 
       .icache_arready_i (icache_arready),
       .icache_arvalid_o (icache_arvalid),
@@ -98,6 +104,39 @@ module ysyx_00000000_core (
       .icache_rready_o  (icache_rready)
     );
 
+    wire [`DEU_RFU_BUS_WIDTH-1:0] deu_rfu_bus;
+    wire deu_valid;
+    wire exu_ready;
+
+    wire rfu_valid;
+    wire exu_valid;
+    wire lsu_valid;
+    wire lsu_rd_valid;
+    wire wbu_valid;
+    wire [4:0]  exu_rd;
+    wire [4:0]  lsu_rd;
+    wire [4:0]  rd;
+    wire [11:0] exu_csr_addr;
+    wire [11:0] lsu_csr_addr;
+    wire [11:0] csr_waddr;
+
+    deu deu_module (
+        .clock          (clock),
+        .reset          (reset),
+
+        .icu_valid_i    (icache_valid),
+        .icu_deu_bus_i  (icu_deu_bus),
+
+        .deu_ready_o    (deu_ready),
+        .deu_rfu_bus_o  (deu_rfu_bus),
+
+        .icache_flush   (icache_flush),
+        .branch_flush   (branch_flush),
+
+        .rfu_ready_i    (rfu_ready),
+        .valid_o        (deu_valid)
+    );
+
     wire [ 4:0] rs1;
     wire [ 4:0] rs2;
     wire [31:0] rs1_value;
@@ -106,15 +145,16 @@ module ysyx_00000000_core (
     wire [11:0] csr_raddr;
     wire [31:0] csr_value;
 
-    wire [`RFU_DEU_BUS_WIDTH-1:0] rfu_deu_bus;
-    wire rfu_valid;
+    wire [`RFU_EXU_BUS_WIDTH-1:0] rfu_exu_bus;
 
     rfu rfu_module (
         .clock          (clock),
         .reset          (reset),
-        .ifu_valid_i    (ifu_valid),
-        .ifu_rfu_bus_i  (ifu_rfu_bus),
-        
+
+        .deu_valid_i    (deu_valid),
+        .exu_ready_i    (exu_ready),
+        .deu_rfu_bus_i  (deu_rfu_bus),
+
         // regfile
         .rfu_rs1_o      (rs1),
         .rfu_rs2_o      (rs2),
@@ -125,38 +165,37 @@ module ysyx_00000000_core (
         .rfu_csr_addr_o (csr_raddr),
         .rfu_csr_value_i(csr_value),
 
-        .rdata_i        (rdata),
-        .rvalid_i       (rvalid),
+        .branch_flush   (branch_flush),
 
-        .rfu_deu_bus_o  (rfu_deu_bus),
+        .rfu_exu_bus_o  (rfu_exu_bus),
+
+        .exu_valid      (exu_valid),
+        .exu_rd         (exu_rd),
+        .exu_csr_addr   (exu_csr_addr),
+        .lsu_valid      (lsu_rd_valid),
+        .lsu_rd         (lsu_rd),
+        .lsu_csr_addr   (lsu_csr_addr),
+        .wbu_valid      (wbu_valid),
+        .wbu_rd         (rd),
+        .wbu_csr_addr   (csr_waddr),
+
+        .rfu_ready_o    (rfu_ready),
         .valid_o        (rfu_valid)
     );
 
-    wire [`DEU_EXU_BUS_WIDTH-1:0] deu_exu_bus;
-    wire deu_valid;
-
-    deu deu_module (
-        .clock          (clock),
-        .reset          (reset),
-        .rfu_valid_i    (rfu_valid),
-        .rfu_deu_bus_i  (rfu_deu_bus),
-        .deu_exu_bus_o  (deu_exu_bus),
-        .icache_flush   (icache_flush),
-        .valid_o        (deu_valid)
-    );
-
     wire [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
-    wire exu_valid;
+    wire lsu_ready;
 
     exu exu_module (
         .clock          (clock),
         .reset          (reset),
-        .deu_valid_i    (deu_valid),
-        .deu_exu_bus_i  (deu_exu_bus),
+        .rfu_valid_i    (rfu_valid),
+        .lsu_ready_i    (lsu_ready),
+        .rfu_exu_bus_i  (rfu_exu_bus),
 
         .arready_i      (exu_arready),
         .araddr_o       (exu_araddr),
-        .arsize_o   (exu_arsize),
+        .arsize_o       (exu_arsize),
         .arvalid_o      (exu_arvalid),
         .awready_i      (exu_awready),
         .awaddr_o       (exu_awaddr),
@@ -166,18 +205,25 @@ module ysyx_00000000_core (
         .wstrb_o        (exu_wstrb),
         .wvalid_o       (exu_wvalid),
 
+        .branch_flush   (branch_flush),
+        .branch_target  (branch_target),
+
         .exu_lsu_bus_o  (exu_lsu_bus),
+        .exu_ready_o    (exu_ready),
+        .exu_rd_o       (exu_rd),
+        .exu_csr_addr_o (exu_csr_addr),
         .valid_o        (exu_valid)
     );
 
     // wire [31:0] mem_rdata;
     wire [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus;
-    wire lsu_valid;
+    wire wbu_ready;
 
     lsu lsu_module (
         .clock          (clock),
         .reset          (reset),
         .exu_valid_i    (exu_valid),
+        .wbu_ready_i    (wbu_ready),
         .exu_lsu_bus_i  (exu_lsu_bus),
 
         .rdata_i        (lsu_rdata),
@@ -190,11 +236,13 @@ module ysyx_00000000_core (
         .bready_o       (lsu_bready),
 
         .lsu_wbu_bus_o  (lsu_wbu_bus),
+        .lsu_ready_o    (lsu_ready),
+        .lsu_rd_valid_o (lsu_rd_valid),
+        .lsu_rd_o       (lsu_rd),
+        .lsu_csr_addr_o (lsu_csr_addr),
         .valid_o        (lsu_valid)
     );
 
-    wire [ 4:0] rd;
-    wire [11:0] csr_waddr;
     wire [31:0] rf_wdata;
     wire rf_we;
     wire [31:0] csr_wdata;
@@ -214,8 +262,10 @@ module ysyx_00000000_core (
         .csr_wdata_o    (csr_wdata),
         .csr_we_o       (csr_we),
 
+        .wbu_valid_o    (wbu_valid),
+
         .wbu_ifu_bus_o  (wbu_ifu_bus),
-        .finish_o        (wbu_finish)
+        .wbu_ready_o    (wbu_ready)
     );
 
     // regfile

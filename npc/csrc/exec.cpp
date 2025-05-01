@@ -100,15 +100,18 @@ for (int i = 0; i < n; i++) {
         break;
     }
     
-    nvboard_update();
+    #ifdef CONFIG_YSYXSOC
+      nvboard_update();
+    #endif
     single_cycle(&cur_inst);
     #ifdef CONFIG_TRACE_PERFORMANCE
       cycle_count();
     #endif // CONFIG_TRACE_PERFORMANCE
 
     #ifdef CONFIG_DIFFTEST
+      extern uint32_t difftest_pc;
       if (is_difftest_cycle())
-        difftest_step(cur_inst.pc);
+        difftest_step(difftest_pc);
     #endif // CONFIG_DIFFTEST
 
     if (g_print_step) {

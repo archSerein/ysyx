@@ -28,9 +28,11 @@ word_t vaddr_read(vaddr_t addr, int len) {
   if (addr == 0x10000005) {
     return 32;
   }
+  // assert(write(mtrace_fd, &addr, sizeof(addr)) > 0);
   return paddr_read(addr, len);
 }
 
 void vaddr_write(vaddr_t addr, int len, word_t data) {
+  // assert(write(mtrace_fd, &addr, sizeof(addr)) > 0);
   paddr_write(addr, len, data);
 }

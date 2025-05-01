@@ -1,7 +1,7 @@
 #ifndef __PMEM_HPP__
 #define __PMEM_HPP__
 
-#define CONFIG_MEM_SIZE (128 * 1024 * 1024 / sizeof(uint32_t))  // 128MB，假设每个uint32_t占4字节
+#define CONFIG_MEM_SIZE      0x8000000
 #define CONFIG_MBASE         0x80000000
 #define CONFIG_MROM_SIZE     0x1000
 #define CONFIG_MROM_BASE     0x20000000

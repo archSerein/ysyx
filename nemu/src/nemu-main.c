@@ -22,8 +22,9 @@ void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
 
-int mtrace_fd;
-const char path[] = "/home/serein/ysyx/ysyx-workbench/sim/cachesim/mtrace-file/file.txt";
+uint32_t inst_cnt = 0;
+// int mtrace_fd;
+// const char path[] = "/home/serein/ysyx/ysyx-workbench/sim/cachesim/mtrace-file/file.txt";
 int main(int argc, char *argv[]) {
   /* Initialize the monitor. */
 #ifdef CONFIG_TARGET_AM

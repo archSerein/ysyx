@@ -13,6 +13,7 @@ module clint (
 
     reg     [31:0]          mtime_h;
     reg     [31:0]          mtime_l;
+    reg     [31:0]          raddr;
     reg                     valid;
     always @(posedge clock) begin
         if (reset) begin
@@ -26,14 +27,15 @@ module clint (
         end
     end
     always @(posedge clock) begin
-      if (arvalid_i) begin
+      if (arvalid_i && !valid) begin
         valid <= 1;
-      end else begin
+        raddr <= araddr_i;
+      end else if (rready_i) begin
         valid <= 0;
       end
     end
 
-    assign rdata_o     = araddr_i[3:0] == 4'h8 ? mtime_l : mtime_h; 
+    assign rdata_o     = raddr[3:0] == 4'hc ? mtime_h : mtime_l; 
     assign arready_o   = !valid;
     assign rvalid_o    = valid;
 endmodule

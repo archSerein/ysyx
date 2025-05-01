@@ -44,12 +44,13 @@ $(SRC_AUTO_BIND): $(NXDC_FILES)
 	python3 $(NVBOARD_HOME)/scripts/auto_pin_bind.py $^ $@
 
 # project source
-VSRCS =	$(shell find $(abspath ./vsrc) -name "*.v")
+VSRCS = 
 ifeq ($(ARCH), riscv32e-ysyxsoc)
 	VSRCS += $(shell find $(abspath ../ysyxSoC/perip) -name "*.v")
 	VSRCS += $(shell find $(abspath ../ysyxSoC/build) -name "*.v")
+	VSRCS += $(shell find $(abspath ./vsrc) -name "*.v")
 else
-	VSRCS += $(shell find $(abspath ../riscv32e-npc) -name "*.v")
+	VSRCS += $(shell find $(abspath ../riscv32e-npc) -name "*.v" -or -name "*.vh")
 endif
 CSRCS = $(shell find $(abspath ./csrc) -name "*.c" -or -name "*.cc" -or -name "*.cpp")
 CSRCS += $(SRC_AUTO_BIND)
@@ -73,6 +74,7 @@ endif
 
 ifeq ($(ARCH), riscv32e-ysyxsoc)
 	INCDIR = +incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/uart16550/rtl	+incdir+/home/serein/ysyx/ysyx-workbench/ysyxSoC/perip/spi/rtl
+	INCDIR += +incdir+/home/serein/ysyx/ysyx-workbench/npc/vsrc
 else
 	INCDIR = +incdir+/home/serein/ysyx/ysyx-workbench/riscv32e-npc
 endif
@@ -81,7 +83,6 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 		@python3 $(NPC_HOME)/trans.py
 		@rm -rf $(OBJ_DIR)
 		$(VERILATOR) $(VERILATOR_CFLAGS) \
-		+incdir+/home/serein/ysyx/ysyx-workbench/npc/vsrc \
 		$(INCDIR)	\
 		--top-module $(TOPNAME) $^ \
 		$(addprefix -CFLAGS , $(CXXFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include "pmem.hpp"
 #include "difftest.hpp"
 #include "debug.hpp"
@@ -15,13 +16,17 @@ bool is_skip_ref = false;
 
 extern uint32_t register_file[37];
 
-static bool isa_difftest_checkregs(uint32_t *ref, vaddr_t pc)
+static bool isa_difftest_checkregs(uint32_t *ref, vaddr_t pc, vaddr_t ref_pc)
 {
     int i;
     for (i = 0; i < 37; i++) {
-        if (register_file[i] != ref[i]) {
+        if (register_file[i] != ref[i] && i != 32) {
             goto bad;
         }
+    }
+    if (pc != ref_pc) {
+        i = 32;
+        goto bad;
     }
     return true;
 
@@ -71,13 +76,15 @@ init_difftest(const char *ref_so_file, long img_size, int port)
     #ifdef CONFIG_YSYXSOC
       ref_difftest_memcpy(RESET_VECTOR, flash_to_host(RESET_VECTOR-PMEM_LEFT), img_size, DIFFTEST_TO_REF);
     #else
-      ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR-PMEM_LEFT), img_size, DIFFTEST_TO_REF);
+      ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
     #endif
+    // init pc value
+    register_file[32] = 0x30000000;
     ref_difftest_regcpy(register_file, DIFFTEST_TO_REF);
 }
 
-static void checkregs(uint32_t *ref, vaddr_t pc) {
-  if (!isa_difftest_checkregs(ref, pc)) {
+static void checkregs(uint32_t *ref, vaddr_t pc, vaddr_t ref_pc) {
+  if (!isa_difftest_checkregs(ref, pc, ref_pc)) {
     npc_state.state = ABORT;
     npc_state.halt_pc = pc;
     isa_reg_display();
@@ -90,13 +97,20 @@ difftest_step(vaddr_t pc)
 {
     uint32_t ref_r[37];
     if (is_skip_ref) {
-        ref_difftest_regcpy(register_file ,DIFFTEST_TO_REF); 
+        ref_difftest_regcpy(ref_r, DIFFTEST_TO_DUT);
+        uint32_t ref_pc = ref_r[32];
+        memcpy(ref_r, register_file, sizeof(ref_r));
+        ref_r[32] = ref_pc + 4;
+        ref_difftest_regcpy(ref_r ,DIFFTEST_TO_REF); 
+        is_skip_ref = false;
         return;
     }
+    ref_difftest_regcpy(ref_r, DIFFTEST_TO_DUT);
+    uint32_t cur_ref_pc = ref_r[32];
     ref_difftest_exec(1);
     ref_difftest_regcpy(ref_r, DIFFTEST_TO_DUT);
 
-    checkregs(ref_r, pc);
+    checkregs(ref_r, pc, cur_ref_pc);
 }
 
 extern "C" void difftest_skip_ref(int is_skip) {

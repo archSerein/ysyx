@@ -15,6 +15,7 @@ static TOP_NAME top;
     VerilatedVcdC* tfp = NULL;
 #endif // CONFIG_TRACE_WAVE
 
+uint32_t deu_inst;
 uint32_t register_file[37];
 int e = 0;
 int64_t inst_cnt = 0;
@@ -32,6 +33,7 @@ int64_t mem_cycle_cnt = 0;
 int64_t hit_counter = 0;
 int64_t miss_cnt = 0;
 int64_t penalty_cnt = 0;
+int64_t total_inst_cnt = 0;
 
 extern "C" void ending(int num) { e = num; }
 extern "C" void putch(int ch) { putchar(ch); }
@@ -40,7 +42,7 @@ static void update_register_array();
 #ifdef CONFIG_TRACE_WAVE
 bool is_open_trace_wave = false;
 void open_trace_wave(uint32_t pc) {
-    if (!is_open_trace_wave) {
+    if (!is_open_trace_wave && pc == 0xa0018180) {
         is_open_trace_wave = true;
         Log("open trace wave");
     }
@@ -76,8 +78,10 @@ single_cycle(inst_i *cur_inst) {
         cur_inst->inst = get_inst_reg();
     }
     #ifdef CONFIG_TRACE_WAVE
-        open_trace_wave(get_pc_reg());
-        close_trace_wave(get_pc_reg());
+        if (cur_inst != NULL) {
+            open_trace_wave(get_pc_reg());
+            close_trace_wave(get_pc_reg());
+        }
     #endif // CONFIG_TRACE_WAVE
     top.clock = 0; // 切换时钟状态
     top.eval();
@@ -124,7 +128,7 @@ sim_exit(){
         fprintf(fp, "Cycle: %ld Instructions: %ld, IPC: %.04f", cycle_cnt, inst_cnt, (double)inst_cnt / cycle_cnt);
         fprintf(fp, "IFU Instructions: %ld, LSU Load/Store Instructions: %ld, EXU ALU Instructions: %ld", ifu_inst_cnt, lsu_load_cnt, exu_alu_cnt);
         fprintf(fp, "CAL Instructions: %ld, MEM Instructions: %ld, CSR Instructions: %ld, BR Instructions: %ld, JUMP Instructions: %ld, DEFAULT Instructions: %ld", cal_inst_cnt, mem_inst_cnt, csr_inst_cnt, br_inst_cnt, jump_inst_cnt, default_inst_cnt);
-        double total_inst = (double)inst_cnt;
+        double total_inst = (double)total_inst_cnt;
         fprintf(fp, "CAL Instructions Ratio: %.04f", cal_inst_cnt / total_inst);
         fprintf(fp, "MEM Instructions Ratio: %.04f", mem_inst_cnt / total_inst);
         fprintf(fp, "CSR Instructions Ratio: %.04f", csr_inst_cnt / total_inst);
@@ -132,8 +136,8 @@ sim_exit(){
         fprintf(fp, "JUMP Instructions Ratio: %.04f", jump_inst_cnt / total_inst);
         fprintf(fp, "DEFAULT Instructions Ratio: %.04f", default_inst_cnt / total_inst);
         fprintf(fp, "Memory Access Cycle: %ld, average memory access cycle: %.04f", mem_cycle_cnt, (double)mem_cycle_cnt / lsu_load_cnt);
-        fprintf(fp, "icache hit Ratio: %.04f", (double)hit_counter / inst_cnt);
-        fprintf(fp, "Average Memory Access Time: %.04f", (1 - (double)hit_counter / inst_cnt) * (double)penalty_cnt / miss_cnt + 1);
+        fprintf(fp, "icache hit Ratio: %.04f", (double)hit_counter / ifu_inst_cnt);
+        fprintf(fp, "Average Memory Access Time: %.04f", (1 - (double)hit_counter / ifu_inst_cnt) * (double)penalty_cnt / miss_cnt + 1);
         fprintf(fp, "综合面积: 29033.900000um^2, 频率: 700MHz");
         fclose(fp);
         printf("hit: %ld, miss: %ld\n", hit_counter, miss_cnt);
@@ -198,8 +202,12 @@ isa_reg_str2val(const char *s) {
 
 #ifdef CONFIG_DIFFTEST
 bool    is_difftest_time = false;
-extern "C" void is_difftest(char difftest){
+uint32_t difftest_pc = 0;
+extern  bool is_skip_ref;
+extern "C" void is_difftest(char difftest, int pc, char skip){
     is_difftest_time = difftest == 1;
+    is_skip_ref = skip == 1;
+    difftest_pc = (uint32_t)pc;
 }
 bool is_difftest_cycle() {
     return is_difftest_time;
@@ -210,15 +218,15 @@ uint32_t get_pc_reg() {
   #ifdef CONFIG_YSYXSOC
     return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__ifu_module__DOT__ifu_pc;
   #else
-    return 0;
+    return top.rootp->ysyxSoCFull__DOT__ifu_module__DOT__ifu_pc;
   #endif
 }
 
 uint32_t get_inst_reg() {
   #ifdef CONFIG_YSYXSOC
-    return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__rfu_module__DOT__rfu_inst_r;
+    return deu_inst;
   #else
-    return 0;
+    return top.rootp->ysyxSoCFull__DOT__rfu_module__DOT__rfu_inst_r;
   #endif
 }
 
@@ -226,7 +234,7 @@ uint32_t get_reg_val(int index) {
   #ifdef CONFIG_YSYXSOC
     return top.rootp->ysyxSoCFull__DOT__asic__DOT__cpu__DOT__cpu__DOT__core_module__DOT__rf_module__DOT__regfile[index];
   #else
-    return 0;
+    return top.rootp->ysyxSoCFull__DOT__rf_module__DOT__regfile[index];
   #endif
 }
 
@@ -245,7 +253,18 @@ uint32_t get_csr_val(int addr) {
             panic("get_csr_val fault addr: %x", addr);
     }
   #else
-    return 0;
+    switch (addr) {
+        case 0x300:
+            return top.rootp->ysyxSoCFull__DOT__csr_module__DOT__MSTATUS;
+        case 0x342:
+            return top.rootp->ysyxSoCFull__DOT__csr_module__DOT__MCAUSE;
+        case 0x305:
+            return top.rootp->ysyxSoCFull__DOT__csr_module__DOT__MTVEC;
+        case 0x341:
+            return top.rootp->ysyxSoCFull__DOT__csr_module__DOT__MEPC;
+        default:
+            panic("get_csr_val fault addr: %x", addr);
+    }
   #endif
 }
 
@@ -310,4 +329,13 @@ extern "C" void penalty_count() {
 void cycle_count(void) {
     ++cycle_cnt;
 }
+extern "C" void total_inst_count() {
+    ++total_inst_cnt;
+}
 #endif // CONFIG_TRACE_PERFORMANCE
+
+#ifdef CONFIG_YSYXSOC
+  extern "C" void get_inst(uint32_t inst) {
+    deu_inst = inst;
+  }
+#endif // CONFIG_YSYXSOC

@@ -150,8 +150,9 @@ module ysyx_00000000_axi (
         .lsu_bready                 (lsu_bready)
     );
 
+    reg  clint_select;
     wire is_clint;
-    wire clint_arvlid;
+    wire clint_arvalid;
     wire clint_arready;
     wire clint_rvalid;
     wire clint_rready;
@@ -160,7 +161,7 @@ module ysyx_00000000_axi (
         .clock            (clock),
         .reset            (reset),
 
-        .arvalid_i        (clint_arvlid),
+        .arvalid_i        (clint_arvalid),
         .arready_o        (clint_arready),
         .araddr_i         (exu_araddr),
 
@@ -181,34 +182,63 @@ module ysyx_00000000_axi (
       .grant_o        (grant_q)
     );
     assign rreq = {icache_arvalid, exu_arvalid};
-    reg idle;
+    reg   idle;
+    reg   read_busy;
+    reg   write_busy;
+    wire  acquire_arbiter;
+    wire  release_arbiter;
     always @(posedge clock) begin
-      if (reset || io_master_rlast || (is_clint && clint_rvalid)) begin
+      if (idle) begin
+        read_busy <= 1'b0;
+      end else if (acquire_arbiter) begin
+        read_busy <= 1'b1;
+      end
+    end
+    always @(posedge clock) begin
+      if (release_arbiter) begin
         idle <= 1'b1;
-      end else if (grant_q != 0 && idle) begin
+      end else if (idle && grant_q != 0) begin
         idle <= 1'b0;
       end
     end
     always @(posedge clock) begin
       if (idle) begin
-          grant <= grant_q;
+        grant <= grant_q;
+      end
+    end
+    assign release_arbiter = reset || (io_master_rvalid && io_master_rready && io_master_rlast) || (clint_select && clint_rvalid && lsu_rready);
+    assign acquire_arbiter =  grant[1] && icache_arvalid && icache_arready ||
+                              (grant[0] || is_clint) && exu_arvalid && exu_arready;
+
+    always @(posedge clock) begin
+      if (is_clint) begin
+        clint_select <= 1'b1;
+      end else if (clint_rvalid && lsu_rready) begin
+        clint_select <= 1'b0;
+      end
+    end
+    assign is_clint = exu_araddr[31:16] == 16'h0200 && exu_arvalid;
+    assign clint_arvalid = exu_arvalid && is_clint && !read_busy;
+    assign clint_rready = lsu_rready;
+
+    always @(posedge clock) begin
+      if (reset || (io_master_bvalid && io_master_bready)) begin
+        write_busy <= 1'b0;
+      end else if (exu_awvalid && exu_awready) begin
+        write_busy <= 1'b1;
       end
     end
 
-    assign is_clint = exu_araddr[31:16] == 16'h0200;
-    assign clint_arvlid = exu_arvalid && is_clint;
-    assign clint_rready = lsu_rready;
-
-    assign io_master_awvalid = exu_awvalid;
+    assign io_master_awvalid = exu_awvalid && !write_busy;
     assign io_master_awaddr = exu_awaddr;
     assign io_master_awid = 4'b0000;
     assign io_master_awlen = 8'b00000000;
     assign io_master_awsize = 3'b000;
     assign io_master_awburst = 2'b00;
-    assign exu_awready = io_master_awready;
+    assign exu_awready = io_master_awready && !write_busy;
 
-    assign io_master_wvalid = exu_wvalid;
-    assign exu_wready = io_master_wready;
+    assign io_master_wvalid = exu_wvalid && !write_busy;
+    assign exu_wready = io_master_wready && !write_busy;
     assign io_master_wdata = exu_wdata;
     assign io_master_wstrb = exu_wstrb;
     assign io_master_wlast = 1'b1;
@@ -217,25 +247,25 @@ module ysyx_00000000_axi (
     assign lsu_bvalid = io_master_bvalid;
     assign lsu_bresp = io_master_bresp;
 
-    assign io_master_arvalid = (grant[1] && icache_arvalid) || (exu_arvalid && !is_clint && grant[0]);
+    assign io_master_arvalid = (grant[1] && icache_arvalid && !read_busy) || (exu_arvalid && !is_clint && grant[0] && !read_busy);
     assign io_master_araddr = ({32{grant[1]}} & icache_araddr) | ({32{grant[0]}} & exu_araddr);
     assign io_master_arid = 4'b0000;
     assign io_master_arlen = grant[1] ? icache_arlen : 8'h0;
     assign io_master_arsize = ({3{grant[1]}} & icache_arsize) | ({3{grant[0]}} & exu_arsize);
     assign io_master_arburst = grant[1] ? icache_arburst : 2'b00;
-    assign exu_arready = io_master_arready && grant[0];
+    assign exu_arready = grant[0] && !read_busy && io_master_arready;
 
     assign io_master_rready = (grant[1] && icache_rready) | (grant[0] && lsu_rready);
 
-    assign icache_arready = io_master_arready && grant[1];
+    assign icache_arready = io_master_arready && grant[1] && !read_busy;
     assign icache_rvalid = io_master_rvalid & grant[1];
     assign icache_rdata = io_master_rdata;
     assign icache_rresp = io_master_rresp;
     assign icache_rlast = io_master_rlast;
 
-    assign lsu_rvalid = is_clint ? clint_rvalid : io_master_rvalid & grant[0];
-    assign lsu_rdata = is_clint ? clint_rdata : io_master_rdata;
-    assign lsu_rresp = is_clint ? 2'b00 : io_master_rresp;
+    assign lsu_rvalid = clint_select ? clint_rvalid : io_master_rvalid & grant[0];
+    assign lsu_rdata = clint_select ? clint_rdata : io_master_rdata;
+    assign lsu_rresp = clint_select ? 2'b00 : io_master_rresp;
 
     // unused signals
     assign io_slave_awready = 1'b0;
@@ -259,19 +289,4 @@ module ysyx_00000000_axi (
     assign io_slave_rlast = 1'b0;
     assign io_slave_rid = 4'b0000;
 
-    `ifdef CONFIG_DIFFTEST
-        import "DPI-C" function void difftest_skip_ref(input int is_skip);
-        wire is_device_write;
-        wire is_rtc_mmio;
-        assign is_device_write = exu_awaddr >= 32'h10000000 && exu_awaddr <= 32'h10002fff;
-        assign is_rtc_mmio = exu_araddr == 32'h02000048 || exu_araddr == 32'h0200004c;
-        always @(*) begin
-            if (is_device_write || is_rtc_mmio) begin
-                // $display("write to device @ %h, data = %h", exu_awaddr, exu_wdata);
-                difftest_skip_ref(1);
-            end else begin
-                difftest_skip_ref(0);
-            end
-        end
-    `endif
 endmodule

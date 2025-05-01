@@ -5,7 +5,7 @@ MEMORY {
     sram (rwx) : ORIGIN = 0x0f000000, LENGTH = 8K
 }
 
-INCLUDE /home/serein/ysyx/rt-thread-am/bsp/abstract-machine/extra.ld
+INCLUDE /home/serein/ysyx/rt-thread-am/bsp/abstract-machine/extra-ysyxsoc.ld
 ENTRY(_start)
 
 SECTIONS {

@@ -55,7 +55,9 @@ int main(int argc, char *argv[], char *env[]) {
     Verilated::commandArgs(argc, argv);
 
     // nvboard
-    nvboard_init_warp();
+    #ifdef CONFIG_YSYXSOC
+      nvboard_init_warp();
+    #endif
 
     auto start = std::chrono::high_resolution_clock::now();
     reset(1000);
