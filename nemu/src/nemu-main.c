@@ -33,10 +33,11 @@ int main(int argc, char *argv[]) {
   init_monitor(argc, argv);
 #endif
 
-  mtrace_fd = open(path, O_WRONLY);
+  // mtrace_fd = open(path, O_WRONLY);
 
   /* Start engine. */
   engine_start();
 
+  printf("Total executed instructions: %u\n", inst_cnt);
   return is_exit_status_bad();
 }

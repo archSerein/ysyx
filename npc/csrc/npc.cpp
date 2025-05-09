@@ -34,6 +34,7 @@ int64_t hit_counter = 0;
 int64_t miss_cnt = 0;
 int64_t penalty_cnt = 0;
 int64_t total_inst_cnt = 0;
+int64_t stall_cnt = 0;
 
 extern "C" void ending(int num) { e = num; }
 extern "C" void putch(int ch) { putchar(ch); }
