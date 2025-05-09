@@ -3,9 +3,13 @@
 module rfu (
     input                           clock,
     input                           reset,
+
+    input                           excp_flush,
+    input                           mret_flush,
+
     input                           deu_valid_i,
     input  [`DEU_RFU_BUS_WIDTH-1:0] deu_rfu_bus_i,
-    // input  [ 4:0]                   deu_excp_bus_i,
+    input  [ 4:0]                   deu_excp_bus_i,
     output                          rfu_ready_o,
     // regfile
     output [ 4:0]                   rfu_rs1_o,
@@ -18,7 +22,7 @@ module rfu (
 
     input                           branch_flush,
 
-    // data harzard
+    // data harzard (bypass)
     input                           exu_valid,
     input  [ 4:0]                   exu_rd,
     input  [11:0]                   exu_csr_addr,
@@ -31,7 +35,7 @@ module rfu (
 
     input                           exu_ready_i,
     output [`RFU_EXU_BUS_WIDTH-1:0] rfu_exu_bus_o,
-    // output [ 4:0]                   rfu_excp_bus_o,
+    output [ 4:0]                   rfu_excp_bus_o,
     output                          valid_o
 );
 
@@ -48,8 +52,6 @@ module rfu (
     wire        rfu_res_from_csr;
     wire        rfu_res_from_mem;
     wire        rfu_xret_flush;
-    wire        rfu_excp_flush;
-    wire        rfu_break_signal;
     wire        rfu_gr_we;
     wire        rfu_csr_we;
     wire [ 3:0] rfu_mem_re;
@@ -83,8 +85,6 @@ module rfu (
       rfu_res_from_mem,
       rfu_res_from_csr,
       rfu_xret_flush,
-      rfu_break_signal,
-      rfu_excp_flush,
       rfu_gr_we,
       rfu_csr_we,
       rfu_mem_re,
@@ -102,14 +102,15 @@ module rfu (
         end
     end
 
-    // always @(posedge clock) begin
-    //   if (deu_valid_i && rfu_ready_o) begin
-    //       deu_excp_bus <= deu_excp_bus_i;
-    //   end
-    // end
-
     always @(posedge clock) begin
-      if (reset || branch_flush) begin
+      if (deu_valid_i && rfu_ready_o) begin
+          deu_excp_bus <= deu_excp_bus_i;
+      end
+    end
+
+    wire  has_flush_sign;
+    always @(posedge clock) begin
+      if (has_flush_sign) begin
         valid <= 1'b0;
       end else if (deu_valid_i) begin
         valid <= 1'b1;
@@ -117,6 +118,7 @@ module rfu (
         valid <= 1'b0;
       end
     end
+    assign has_flush_sign = reset || branch_flush || excp_flush || mret_flush;
 
     // stall
     wire stall;

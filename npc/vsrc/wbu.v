@@ -5,7 +5,10 @@ module wbu (
     input                           reset,
     input                           lsu_valid_i,
     input  [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus_i,
-    // input  [ 8:0]                   lsu_excp_bus_i,
+    input  [ 8:0]                   lsu_excp_bus_i,
+
+    output                          mret_flush,
+    output                          excp_flush,
     // register file
     output [ 4:0]                   rf_rd_o,
     output [31:0]                   rf_wdata_o,
@@ -14,22 +17,23 @@ module wbu (
     output [11:0]                   csr_addr_o,
     output [31:0]                   csr_wdata_o,
     output                          csr_we_o,
+
+    output [31:0]                   csr_mcause_o,
+    output [31:0]                   csr_mepc_o,
+
     output                          wbu_valid_o,
-    output [`WBU_IFU_BUS_WIDTH-1:0] wbu_ifu_bus_o,
     output                          wbu_ready_o
 );
 
     reg valid;
     reg [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus;
-    // reg [ 8:0] lsu_excp_bus;
+    reg [ 8:0] lsu_excp_bus;
 
     wire [31:0] wbu_final_result;
     wire [31:0] wbu_csr_wdata;
     wire        wbu_gr_we;
     wire [ 4:0] wbu_rd;
     wire [11:0] wbu_csr_addr;
-    wire        wbu_break_signal;
-    wire        wbu_excp_flush;
     wire        wbu_xret_flush;
     wire        wbu_csr_we;
     wire [31:0] wbu_pc;
@@ -44,8 +48,6 @@ module wbu (
         wbu_rd,
         wbu_csr_addr,
         wbu_csr_wdata,
-        wbu_break_signal,
-        wbu_excp_flush,
         wbu_xret_flush
     } = lsu_wbu_bus;
 
@@ -56,8 +58,9 @@ module wbu (
     assign csr_addr_o = wbu_csr_addr;
     assign csr_wdata_o = wbu_csr_wdata;
 
+    wire has_flush_sign;
     always @(posedge clock) begin
-        if (reset) begin
+        if (has_flush_sign) begin
             valid <= 1'b0;
         end if (lsu_valid_i) begin
             valid <= 1'b1;
@@ -70,44 +73,40 @@ module wbu (
         lsu_wbu_bus <= lsu_wbu_bus_i;
       end
     end
-    // always @ (posedge clock) begin
-    //   if (lsu_valid_i && wbu_ready_o) begin
-    //     lsu_excp_bus <= lsu_excp_bus_i;
-    //   end
-    // end
-    //
-    assign wbu_ifu_bus_o = {
-        wbu_excp_flush,
-        wbu_xret_flush
-    };
-    /*
-    * wire [31:0] csr_mcause;
-    * wire [31:0] csr_mepc;
-    * wire        has_excp;
-    * assign has_excp =   lsu_excp_bus[0] || lsu_excp_bus[1] || lsu_excp_bus[2] ||
-      *                   lsu_excp_bus[3] || lsu_excp_bus[4] || lsu_excp_bus[5] ||
-      *                   lsu_excp_bus[6] || lsu_excp_bus[7] || lsu_excp_bus[8] ||
-      *                   lsu_excp_bus[9] || lsu_excp_bus[11] || lsu_excp_bus[12] ||
-      *                   lsu_excp_bus[13] || lsu_excp_bus[15];
-    * assign csr_mepc = wbu_pc;
-    * assign csr_mcause = lsu_excp_bus[0] ? `INST_ADDRESS_MISALIGNED :
-    *                     lsu_excp_bus[1] ? `INST_ACCESS_FAULT :
-    *                     lsu_excp_bus[2] ? `ILLEGAL_INSTRUCTION :
-    *                     lsu_excp_bus[3] ? `BREAKPOINT :
-    *                     lsu_excp_bus[4] ? `LOAD_ADDRESS_MISALIGNED :
-    *                     lsu_excp_bus[5] ? `LOAD_ACCESS_FAULT :
-    *                     lsu_excp_bus[6] ? `STORE_AMO_ADDRESS_MISALIGNED :
-    *                     lsu_excp_bus[7] ? `STORE_AMO_ACCESS_FAULT :
-    *                     lsu_excp_bus[8] ? `ENVIRONMENT_CALL_FROM_U :
-    *                     lsu_excp_bus[9] ? `ENVIRONMENT_CALL_FROM_S :
-    *                     lsu_excp_bus[11] ? `ENVIRONMENT_CALL_FROM_M :
-    *                     lsu_excp_bus[12] ? `INSTRUCTION_PAGE_FAULT :
-    *                     lsu_excp_bus[13] ? `LOAD_PAGE_FAULT :
-    *                     lsu_excp_bus[15] ? `STORE_AMO_PAGE_FAULT :
-    *                     32'h0;
-      */
-    assign wbu_ready_o = !valid;
+    always @ (posedge clock) begin
+      if (lsu_valid_i && wbu_ready_o) begin
+        lsu_excp_bus <= lsu_excp_bus_i;
+      end
+    end
+    assign has_flush_sign = has_excp || reset || wbu_xret_flush;
+
+    wire        has_excp;
+    assign has_excp =   lsu_excp_bus[0] || lsu_excp_bus[1] || lsu_excp_bus[2] ||
+                        lsu_excp_bus[3] || lsu_excp_bus[4] || lsu_excp_bus[5] ||
+                        lsu_excp_bus[6] || lsu_excp_bus[7] || lsu_excp_bus[8];
+                        // lsu_excp_bus[9] || lsu_excp_bus[11] || lsu_excp_bus[12] ||
+                        // lsu_excp_bus[13] || lsu_excp_bus[15];
+    assign csr_mepc_o = wbu_pc;
+    assign csr_mcause_o = lsu_excp_bus[0] ? `INST_ADDR_MISALIGNED :
+                          lsu_excp_bus[1] ? `INST_ACCESS_FAULT :
+                          lsu_excp_bus[2] ? `ILLEGAL_INST :
+                          lsu_excp_bus[3] ? `BREAKPOINT :
+                          lsu_excp_bus[4] ? `LOAD_ADDR_MISALIGNED :
+                          lsu_excp_bus[5] ? `LOAD_ACCESS_FAULT :
+                          lsu_excp_bus[6] ? `STORE_AMO_ADDR_MISALIGNED :
+                          lsu_excp_bus[7] ? `STORE_AMO_ACCESS_FAULT :
+                          lsu_excp_bus[8] ? `ECALL_FROM_M_MODE :
+                          32'h0;
+                          // lsu_excp_bus[8] ? `ECALL_FROM_U_MODE :
+                          // lsu_excp_bus[9] ? `ECALL_FROM_S_MODE :
+                          // lsu_excp_bus[12] ? `INST_PAGE_FAULT :
+                          // lsu_excp_bus[13] ? `LOAD_PAGE_FAULT :
+                          // lsu_excp_bus[15] ? `STORE_AMO_PAGE_FAULT :
+
+    assign wbu_ready_o = 1'b1;
     assign wbu_valid_o = valid;
+    assign mret_flush = wbu_xret_flush && valid;
+    assign excp_flush = has_excp && valid;
 
     reg [31:0]  cnt;
     always @(posedge clock) begin
@@ -123,7 +122,7 @@ module wbu (
     import "DPI-C" function void ending(input int num);
     // break signal
     always @(*) begin
-        if (wbu_break_signal || cnt >= 32'h2000) begin
+        if (lsu_excp_bus[3] || cnt >= 32'h2000) begin
             ending(1);
         end
     end
@@ -134,7 +133,7 @@ module wbu (
         always @(posedge clock) begin
             if (reset) begin
                 difftest <= 8'b0;
-            end else if (valid) begin
+            end else if (lsu_valid_i) begin
                 difftest <= 8'b1;
             end else begin
                 difftest <= 8'b0;

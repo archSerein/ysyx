@@ -3,13 +3,16 @@ module icache (
   input                           clock,
   input                           reset,
 
+  input                           excp_flush,
+  input                           mret_flush,
+
   output                          ready_o,
   input                           ifu_valid_i,
   input [`IFU_ICU_BUS_WIDTH-1:0]  ifu_icu_bus_i,
-  // input                           ifu_excp_bus_i,
+  input                           ifu_excp_bus_i,
 
   output [`ICU_DEU_BUS_WIDTH-1:0] icu_deu_bus_o,
-  // output [1:0]                    icu_excp_bus_i,
+  output [1:0]                    icu_excp_bus_o,
   output                          valid_o,
   input                           deu_ready_i,
 
@@ -39,25 +42,26 @@ module icache (
   wire      [WIDTH-1:0]     raddr;
   wire      [WIDTH-1:0]     icu_snpc;
   reg [`IFU_ICU_BUS_WIDTH-1:0] ifu_icu_bus;
-  // reg                          ifu_excp_bus;
+  reg                          ifu_excp_bus;
   always @(posedge clock) begin
     if (ifu_valid_i && ready_o) begin
       ifu_icu_bus <= ifu_icu_bus_i;
     end
   end
-  // always @(posedge clock) begin
-  //   if (ifu_valid_i && ready_o) begin
-  //     ifu_excp_bus <= ifu_excp_bus_i;
-  //   end
-  // end
+  always @(posedge clock) begin
+    if (ifu_valid_i && ready_o) begin
+      ifu_excp_bus <= ifu_excp_bus_i;
+    end
+  end
   assign {
     raddr,
     icu_snpc
   } = ifu_icu_bus;
 
   reg valid;
+  wire has_flush_sign;
   always @(posedge clock) begin
-    if (reset | branch_flush) begin
+    if (has_flush_sign) begin
       valid <= 1'b0;
     end else if (ifu_valid_i && ready_o) begin
       valid <= 1'b1;
@@ -65,6 +69,7 @@ module icache (
       valid <= 1'b0;
     end
   end
+  assign has_flush_sign = branch_flush || excp_flush || mret_flush || reset;
 
   reg [WIDTH-1:0]          dataArray[BLOCK-1:0][OFFSET-1:0];
   reg [TAG-1:0]            tagArray[BLOCK-1:0];
@@ -155,7 +160,7 @@ module icache (
     end
   end
 
-  // assign icu_excp_bus_o = {access_data_fault, ifu_excp_bus};
+  assign icu_excp_bus_o = {access_data_fault, ifu_excp_bus};
 
   assign miss_req_tag             = miss_req_addr[WIDTH-1: OFFSET+INDEX];
   assign miss_req_index           = miss_req_addr[OFFSET+INDEX-1: OFFSET]; 

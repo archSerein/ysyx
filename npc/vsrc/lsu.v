@@ -3,10 +3,14 @@
 module lsu (
     input                               clock,
     input                               reset,
+
+    input                               excp_flush,
+    input                               mret_flush,
+
     input                               exu_valid_i,
     input                               wbu_ready_i,
     input  [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_i,
-    // input  [ 6:0]                       exu_excp_bus_i,
+    input  [ 6:0]                       exu_excp_bus_i,
     // read data channel
     input  [31:0]                       rdata_i,
     input  [ 1:0]                       rresp_i,
@@ -19,7 +23,7 @@ module lsu (
     output                              bready_o,
 
     output [`LSU_WBU_BUS_WIDTH-1:0]     lsu_wbu_bus_o,
-    // output [ 8:0]                       lsu_excp_bus_o,
+    output [ 8:0]                       lsu_excp_bus_o,
     output                              lsu_ready_o,
     output                              lsu_rd_valid_o,
     output [ 4:0]                       lsu_rd_o,
@@ -34,7 +38,7 @@ module lsu (
 
     reg valid;
     reg  [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
-    // reg  [ 6:0] exu_excp_bus;
+    reg  [ 6:0] exu_excp_bus;
     wire [31:0] ms_csr_value;
     wire [31:0] ms_csr_wdata;
     wire        ms_res_from_mem;
@@ -43,8 +47,6 @@ module lsu (
     wire [ 3:0] ms_mem_re;
     wire        ms_mem_we;
     wire [11:0] ms_csr_addr;
-    wire        ms_break_signal;
-    wire        ms_excp_flush;
     wire        ms_xret_flush;
     wire [ 1:0] ms_mem_addr_mask;
     wire [ 3:0] ms_mem_re;
@@ -65,9 +67,7 @@ module lsu (
         ms_res_from_mem,
         ms_gr_we,
         ms_rd,
-        ms_excp_flush,
         ms_xret_flush,
-        ms_break_signal,
         ms_final_result
     } = exu_lsu_bus;
 
@@ -100,43 +100,31 @@ module lsu (
             exu_lsu_bus <= exu_lsu_bus_i;
         end
     end
-    // always @(posedge clock) begin
-    //   if (exu_valid_i && lsu_ready_o) begin
-    //       exu_excp_bus <= exu_excp_bus_i;
-    //   end
-    // end
+    always @(posedge clock) begin
+      if (exu_valid_i && lsu_ready_o) begin
+          exu_excp_bus <= exu_excp_bus_i;
+      end
+    end
 
-    localparam IDLE      = 1'b0;
-    localparam WAIT      = 1'b1;
-    reg         state;
     `ifdef CONFIG_TRACE_PERFORMANCE
         import "DPI-C" function void lsu_load_store_count();
         import "DPI-C" function void mem_cycle_count();
         always @ (posedge clock) begin
-          if (state == WAIT && (bvalid_i || rvalid_i)) begin
+          if (resp_handshake_succ) begin
             lsu_load_store_count();
           end
-          if (state == WAIT) begin
+          if (bready_o || rready_o) begin
             mem_cycle_count();
           end
         end
     `endif
-    wire        next_state;
-    wire        idle_next;
-    wire        wait_next;
-    always @(posedge clock) begin
-      if (reset)
-        state <= IDLE;
-      else
-        state <= next_state;
-    end
-    assign idle_next = valid && (|ms_mem_re || ms_mem_we) ? WAIT : IDLE;
-    assign wait_next = (ms_mem_we & bvalid_i) || (!ms_mem_we & rvalid_i) ? IDLE : WAIT;
-    assign next_state = state ? wait_next : idle_next;
 
+    wire resp_handshake_succ;
+    wire no_mem_resp;
     wire condition;
+    wire has_flush_sign;
     always @(posedge clock) begin
-      if (reset) begin
+      if (has_flush_sign) begin
         valid <= 1'b0;
       end else if (exu_valid_i) begin
         valid <= 1'b1;
@@ -144,7 +132,10 @@ module lsu (
         valid <= 1'b0;
       end
     end
-  assign condition =  next_state == IDLE && wbu_ready_i && valid;
+    assign resp_handshake_succ = (bvalid_i && bready_o) || (rvalid_i && rready_o);
+    assign no_mem_resp = !(bready_o || rready_o);
+    assign has_flush_sign = reset || excp_flush || mret_flush;
+    assign condition = (resp_handshake_succ || no_mem_resp) && valid;
 
     assign lsu_wbu_bus_o = {
         is_skip_difftest,
@@ -155,25 +146,23 @@ module lsu (
         ms_rd,
         ms_csr_addr,
         ms_csr_wdata,
-        ms_break_signal,
-        ms_excp_flush,
         ms_xret_flush
     };
     /* 1 + 32 + 1 + 5 + 12 + 32 + 1 + 1 + 1 = 86*/
 
-    // assign lsu_excp_bus_o = {
-    //   exu_excp_bus[6],
-    //   bvalid_i && bresp_i[1],
-    //   exu_excp_bus[5],
-    //   rvalid_i && rresp_i[1],
-    //   exu_excp_bus[4:0]
-    // };
-    assign bready_o = state == WAIT && ms_mem_we;
-    assign rready_o = state == WAIT && !ms_mem_we;
+    assign lsu_excp_bus_o = {
+      exu_excp_bus[6],
+      bvalid_i && bresp_i[1],
+      exu_excp_bus[5],
+      rvalid_i && rresp_i[1],
+      exu_excp_bus[4:0]
+    };
+    assign bready_o = ms_mem_we && valid;
+    assign rready_o = |ms_mem_re && valid;
 
     assign lsu_rd_o = ms_rd;
     assign lsu_csr_addr_o = ms_csr_addr;
     assign valid_o = condition;
     assign lsu_rd_valid_o =  valid;
-    assign lsu_ready_o = !valid || condition;
+    assign lsu_ready_o = !valid || (condition && wbu_ready_i);
 endmodule

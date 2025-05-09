@@ -42,11 +42,12 @@ module ysyx_00000000_core (
     input [ 1:0]                lsu_bresp
 );
 
-    wire [`WBU_IFU_BUS_WIDTH-1:0]    wbu_ifu_bus;
     wire [`IFU_ICU_BUS_WIDTH-1:0]    ifu_icu_bus;
     wire                             ifu_valid;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mtvec;
     wire [`CSR_DATA_WIDTH-1:0]       csr_mepc;
+    wire [`CSR_DATA_WIDTH-1:0]       csr_mepc_w;
+    wire [`CSR_DATA_WIDTH-1:0]       csr_mcause_w;
     wire                             icache_flush;
 
     wire                             icache_ready;
@@ -55,15 +56,29 @@ module ysyx_00000000_core (
     wire                             branch_flush;
     wire [31:0]                      branch_target;
 
+    wire                             excp_flush;
+    wire                             mret_flush;
+
+    wire                             ifu_excp_bus;
+    wire [ 1:0]                      icu_excp_bus;
+    wire [ 4:0]                      deu_excp_bus;
+    wire [ 4:0]                      rfu_excp_bus;
+    wire [ 6:0]                      exu_excp_bus;
+    wire [ 8:0]                      lsu_excp_bus;
+
     ifu ifu_module (
         .clock          (clock),
         .reset          (reset),
-        .wbu_ifu_bus_i  (wbu_ifu_bus),
+
+        .excp_flush     (excp_flush),
+        .mret_flush     (mret_flush),
+
         // csr register
         .csr_mtvec      (csr_mtvec),
         .csr_mepc       (csr_mepc),
 
         .ifu_icu_bus_o  (ifu_icu_bus),
+        .ifu_excp_bus_o (ifu_excp_bus),
 
         .branch_flush   (branch_flush),
         .branch_target  (branch_target),
@@ -79,15 +94,20 @@ module ysyx_00000000_core (
       .clock            (clock),
       .reset            (reset),
 
+      .excp_flush       (excp_flush),
+      .mret_flush       (mret_flush),
+
       .ready_o          (icache_ready),
       .ifu_valid_i      (ifu_valid),
       .ifu_icu_bus_i    (ifu_icu_bus),
+      .ifu_excp_bus_i   (ifu_excp_bus),
 
       .branch_flush     (branch_flush),
       .icache_flush     (icache_flush),
 
       .valid_o          (icache_valid),
       .icu_deu_bus_o    (icu_deu_bus),
+      .icu_excp_bus_o   (icu_excp_bus),
       .deu_ready_i      (deu_ready),
 
       .icache_arready_i (icache_arready),
@@ -124,11 +144,16 @@ module ysyx_00000000_core (
         .clock          (clock),
         .reset          (reset),
 
+        .excp_flush     (excp_flush),
+        .mret_flush     (mret_flush),
+
         .icu_valid_i    (icache_valid),
         .icu_deu_bus_i  (icu_deu_bus),
+        .icu_excp_bus_i (icu_excp_bus),
 
         .deu_ready_o    (deu_ready),
         .deu_rfu_bus_o  (deu_rfu_bus),
+        .deu_excp_bus_o (deu_excp_bus),
 
         .icache_flush   (icache_flush),
         .branch_flush   (branch_flush),
@@ -151,9 +176,13 @@ module ysyx_00000000_core (
         .clock          (clock),
         .reset          (reset),
 
+        .excp_flush     (excp_flush),
+        .mret_flush     (mret_flush),
+
         .deu_valid_i    (deu_valid),
         .exu_ready_i    (exu_ready),
         .deu_rfu_bus_i  (deu_rfu_bus),
+        .deu_excp_bus_i (deu_excp_bus),
 
         // regfile
         .rfu_rs1_o      (rs1),
@@ -168,6 +197,7 @@ module ysyx_00000000_core (
         .branch_flush   (branch_flush),
 
         .rfu_exu_bus_o  (rfu_exu_bus),
+        .rfu_excp_bus_o (rfu_excp_bus),
 
         .exu_valid      (exu_valid),
         .exu_rd         (exu_rd),
@@ -189,9 +219,14 @@ module ysyx_00000000_core (
     exu exu_module (
         .clock          (clock),
         .reset          (reset),
+
+        .excp_flush     (excp_flush),
+        .mret_flush     (mret_flush),
+
         .rfu_valid_i    (rfu_valid),
         .lsu_ready_i    (lsu_ready),
         .rfu_exu_bus_i  (rfu_exu_bus),
+        .rfu_excp_bus_i (rfu_excp_bus),
 
         .arready_i      (exu_arready),
         .araddr_o       (exu_araddr),
@@ -208,6 +243,7 @@ module ysyx_00000000_core (
         .branch_flush   (branch_flush),
         .branch_target  (branch_target),
 
+        .exu_excp_bus_o (exu_excp_bus),
         .exu_lsu_bus_o  (exu_lsu_bus),
         .exu_ready_o    (exu_ready),
         .exu_rd_o       (exu_rd),
@@ -222,9 +258,14 @@ module ysyx_00000000_core (
     lsu lsu_module (
         .clock          (clock),
         .reset          (reset),
+
+        .excp_flush     (excp_flush),
+        .mret_flush     (mret_flush),
+
         .exu_valid_i    (exu_valid),
         .wbu_ready_i    (wbu_ready),
         .exu_lsu_bus_i  (exu_lsu_bus),
+        .exu_excp_bus_i (exu_excp_bus),
 
         .rdata_i        (lsu_rdata),
         .rresp_i        (lsu_rresp),
@@ -235,6 +276,7 @@ module ysyx_00000000_core (
         .bvalid_i       (lsu_bvalid),
         .bready_o       (lsu_bready),
 
+        .lsu_excp_bus_o (lsu_excp_bus),
         .lsu_wbu_bus_o  (lsu_wbu_bus),
         .lsu_ready_o    (lsu_ready),
         .lsu_rd_valid_o (lsu_rd_valid),
@@ -253,6 +295,7 @@ module ysyx_00000000_core (
         .reset          (reset),
         .lsu_valid_i    (lsu_valid),
         .lsu_wbu_bus_i  (lsu_wbu_bus),
+        .lsu_excp_bus_i (lsu_excp_bus),
         // register file
         .rf_rd_o        (rd),
         .rf_wdata_o     (rf_wdata),
@@ -262,9 +305,12 @@ module ysyx_00000000_core (
         .csr_wdata_o    (csr_wdata),
         .csr_we_o       (csr_we),
 
-        .wbu_valid_o    (wbu_valid),
+        .excp_flush     (excp_flush),
+        .mret_flush     (mret_flush),
+        .csr_mcause_o   (csr_mcause_w),
+        .csr_mepc_o     (csr_mepc_w),
 
-        .wbu_ifu_bus_o  (wbu_ifu_bus),
+        .wbu_valid_o    (wbu_valid),
         .wbu_ready_o    (wbu_ready)
     );
 
@@ -292,6 +338,10 @@ module ysyx_00000000_core (
         // ifu
         .csr_mtvec_o    (csr_mtvec),
         .csr_mepc_o     (csr_mepc),
+
+        .excp_flush     (excp_flush),
+        .csr_mepc_i     (csr_mepc_w),
+        .csr_mcause_i   (csr_mcause_w),
 
         .csr_rdata_o    (csr_value)
     );

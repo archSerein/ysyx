@@ -5,8 +5,9 @@
 module ifu (
     input                               clock,
     input                               reset,
-    input  [`WBU_IFU_BUS_WIDTH-1:0]     wbu_ifu_bus_i,
 
+    input                               excp_flush,
+    input                               mret_flush,
     // csr register
     input  [`CSR_DATA_WIDTH-1:0]        csr_mtvec,
     input  [`CSR_DATA_WIDTH-1:0]        csr_mepc,
@@ -26,14 +27,9 @@ module ifu (
     wire [31:0] snpc;
     assign snpc = ifu_pc + 4;
 
-    wire        xret_flush;
-    wire        excp_flush;
-
-    assign {excp_flush, xret_flush} = wbu_ifu_bus_i;
-
     wire [31:0] dnpc;
     assign dnpc =   excp_flush ? csr_mtvec :
-                    xret_flush ? csr_mepc :
+                    mret_flush ? csr_mepc :
                     branch_flush ? branch_target :
                     snpc;
 
@@ -43,13 +39,13 @@ module ifu (
     wire handshake_succ;
     reg  valid;
     always @ (posedge clock) begin
-        if (handshake_succ || reset || branch_flush || excp_flush || xret_flush) begin
+        if (handshake_succ || reset || branch_flush || excp_flush || mret_flush) begin
           ifu_pc <= next_pc;
         end
     end
 
     always @ (posedge clock) begin
-      if (reset || branch_flush || excp_flush || xret_flush) begin
+      if (reset || branch_flush || excp_flush || mret_flush) begin
         valid <= 1'b0;
       end else if (ready_i) begin
         valid <= 1'b1;
@@ -60,7 +56,7 @@ module ifu (
     assign handshake_succ = valid && valid_o && ready_i;
 
     assign ifu_icu_bus_o = {ifu_pc, snpc};
-    assign valid_o = valid && !branch_flush && !excp_flush && !xret_flush;
+    assign valid_o = valid && !branch_flush && !excp_flush && !mret_flush;
     assign ifu_excp_bus_o = ifu_pc[1] || ifu_pc[0];
 
 endmodule

@@ -5,13 +5,16 @@ module deu (
     input                           clock,
     input                           reset,
 
+    input                           excp_flush,
+    input                           mret_flush,
+
     input                           icu_valid_i,
     input  [`ICU_DEU_BUS_WIDTH-1:0] icu_deu_bus_i,
-    // input  [ 1:0]                   icu_excp_bus_i,
+    input  [ 1:0]                   icu_excp_bus_i,
 
     output                          deu_ready_o,
     output [`DEU_RFU_BUS_WIDTH-1:0] deu_rfu_bus_o,
-    // output [ 4:0]                   deu_excp_bus_o,
+    output [ 4:0]                   deu_excp_bus_o,
 
     output                          icache_flush,
     input                           branch_flush,
@@ -22,7 +25,7 @@ module deu (
 
     reg valid;
     reg [`ICU_DEU_BUS_WIDTH-1:0] icu_deu_bus;
-    // reg [ 1:0]                   icu_excp_bus;
+    reg [ 1:0]                   icu_excp_bus;
 
     wire [31:0] deu_pc;
     wire [31:0] deu_snpc;
@@ -52,14 +55,15 @@ module deu (
         icu_deu_bus <= icu_deu_bus_i;
       end
     end
-    // always @ (posedge clock) begin
-    //   if (icu_valid_i && deu_ready_o) begin
-    //     icu_excp_bus <= icu_excp_bus_i;
-    //   end
-    // end
+    always @ (posedge clock) begin
+      if (icu_valid_i && deu_ready_o) begin
+        icu_excp_bus <= icu_excp_bus_i;
+      end
+    end
 
+    wire has_flush_sign;
     always @(posedge clock) begin
-      if (reset || branch_flush) begin
+      if (has_flush_sign) begin
         valid <= 1'b0;
       end else if (icu_valid_i) begin
         valid <= 1'b1;
@@ -67,6 +71,7 @@ module deu (
         valid <= 1'b0;
       end
     end
+    assign has_flush_sign = reset || branch_flush || excp_flush || mret_flush;
 
     // instruction
     wire            inst_lui;
@@ -288,12 +293,6 @@ module deu (
     wire xret_flush;
     assign xret_flush = inst_mret;
 
-    wire break_signal;
-    assign break_signal = inst_ebreak;
-
-    wire excp_flush;
-    assign excp_flush = inst_ecall;
-
     wire gr_we;
     assign gr_we = deu_optype != `INST_S && deu_optype != `INST_B && !inst_ecall && !inst_mret
                     && !inst_ebreak;
@@ -345,8 +344,6 @@ module deu (
       res_from_mem,
       res_from_csr,
       xret_flush,
-      break_signal,
-      excp_flush,
       gr_we,
       csr_we,
       deu_mem_re,
@@ -359,12 +356,12 @@ module deu (
 
     assign valid_o = valid && !branch_flush;
     assign deu_ready_o = !valid || (valid_o && rfu_ready_i);
-    // assign deu_excp_bus_o = {
-    //   inst_ecall,
-    //   inst_ebreak,
-    //   !valid_inst,
-    //   icu_excp_bus[1:0]
-    // };
+    assign deu_excp_bus_o = {
+      inst_ecall,
+      inst_ebreak,
+      !valid_inst,
+      icu_excp_bus[1:0]
+    };
 
     `ifdef CONFIG_TRACE_PERFORMANCE
       // performance counter

@@ -4,9 +4,13 @@
 module exu (
     input                               clock,
     input                               reset,
+
+    input                               excp_flush,
+    input                               mret_flush,
+
     input                               rfu_valid_i,
     input  [`RFU_EXU_BUS_WIDTH-1:0]     rfu_exu_bus_i,
-    // input  [ 4:0]                       rfu_excp_bus_i,
+    input  [ 4:0]                       rfu_excp_bus_i,
     output                              exu_ready_o,
     // axi read addr channel
     input                               arready_i,
@@ -28,7 +32,7 @@ module exu (
 
     input                               lsu_ready_i,
     output [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_o,
-    // output [ 6:0]                       exu_excp_bus_o,
+    output [ 6:0]                       exu_excp_bus_o,
     output [ 4:0]                       exu_rd_o,
     output [11:0]                       exu_csr_addr_o,
     output                              valid_o
@@ -36,7 +40,7 @@ module exu (
 
     reg valid;
     reg  [`RFU_EXU_BUS_WIDTH-1:0]     rfu_exu_bus;
-    // reg  [ 4:0]                       rfu_excp_bus;
+    reg  [ 4:0]                       rfu_excp_bus;
     wire [ 4:0]           ex_rd;
     wire                  ex_branch;
     wire [31:0]           ex_alu_src1;
@@ -51,8 +55,6 @@ module exu (
     wire [31:0]           ex_csr_wdata;
     wire [ 2:0]           ex_alu_op;
     wire                  ex_xret_flush;
-    wire                  ex_excp_flush;
-    wire                  ex_break_signal;
     wire                  ex_res_from_pre;
     wire [31:0]           ex_snpc;
     wire [31:0]           ex_rs2_value;
@@ -63,11 +65,11 @@ module exu (
         rfu_exu_bus <= rfu_exu_bus_i;
       end
     end
-    // always @ (posedge clock) begin
-    //   if (rfu_valid_i && exu_ready_o) begin
-    //     rfu_excp_bus <= rfu_excp_bus_i;
-    //   end
-    // end
+    always @ (posedge clock) begin
+      if (rfu_valid_i && exu_ready_o) begin
+        rfu_excp_bus <= rfu_excp_bus_i;
+      end
+    end
 
     assign {
       ex_pc,
@@ -87,9 +89,7 @@ module exu (
       ex_csr_addr,
       ex_csr_wdata,
       ex_snpc,
-      ex_xret_flush,
-      ex_excp_flush,
-      ex_break_signal
+      ex_xret_flush
     } = rfu_exu_bus;
 
     wire [31:0] ex_alu_result;
@@ -156,9 +156,7 @@ module exu (
         ex_res_from_mem,        
         ex_gr_we,               
         ex_rd,                  
-        ex_excp_flush,          
         ex_xret_flush,          
-        ex_break_signal,        
         final_result
     };
     /* 32 + 1 + 2 + 4 + 1 + 12 + 1 + 1 + 5 + 1 + 1 + 1 + 32 = 94*/
@@ -166,8 +164,9 @@ module exu (
     wire    idle;
     wire    no_mem_req;
     wire    handshake_success;
+    wire    has_flush_sign;
     always @(posedge clock) begin
-        if (reset) begin
+        if (has_flush_sign) begin
             valid <= 1'b0;
         end else if (rfu_valid_i) begin
             valid <= 1'b1;
@@ -175,6 +174,7 @@ module exu (
             valid <= 1'b0;
         end
     end
+    assign has_flush_sign = reset || excp_flush || mret_flush;
 
     reg         handshake_state;
     always @ (posedge clock) begin
@@ -202,15 +202,15 @@ module exu (
     assign wstrb_o          = mem_we_mask;
     assign wvalid_o         = (|ex_mem_we) && request_valid;
 
-    // wire   load_addr_misalign;
-    // wire   store_amo_addr_misalign;
-    //
-    // assign load_addr_misalign = ex_mem_re[3] ? (ex_alu_result[1] | ex_alu_result[0]) :
-    //                             ex_mem_re[1] ? ex_alu_result[0] :
-    //                             1'b0;
-    // assign store_amo_addr_misalign = ex_mem_we[3] ? (ex_alu_result[1] | ex_alu_result[0]) :
-    //                                  ex_mem_we[1] ? ex_alu_result[0] :
-    //                                  1'b0;
+    wire   load_addr_misalign;
+    wire   store_amo_addr_misalign;
+
+    assign load_addr_misalign = ex_mem_re[3] ? (ex_alu_result[1] | ex_alu_result[0]) :
+                                ex_mem_re[1] ? ex_alu_result[0] :
+                                1'b0;
+    assign store_amo_addr_misalign = ex_mem_we[3] ? (ex_alu_result[1] | ex_alu_result[0]) :
+                                     ex_mem_we[1] ? ex_alu_result[0] :
+                                     1'b0;
 
     assign no_mem_req = !(arvalid_o || awvalid_o || wvalid_o);
     assign handshake_success = (arvalid_o && arready_i) || (awvalid_o && awready_i && wvalid_o && wready_i);
@@ -219,7 +219,8 @@ module exu (
     assign exu_ready_o = !valid || (valid_o && lsu_ready_i);
     assign exu_rd_o = ex_rd;
     assign exu_csr_addr_o = ex_csr_addr;
-    // assign exu_excp_bus_o = {store_amo_addr_misalign, load_addr_misalign, rfu_excp_bus};
+    assign exu_excp_bus_o = {rfu_excp_bus[4], store_amo_addr_misalign,
+                              load_addr_misalign, rfu_excp_bus[3:0]};
 
     assign is_skip_difftest = (awvalid_o || arvalid_o) && (ex_alu_result[31:16] == 16'h1000 || ex_alu_result[31:16] == 16'h0200);
     `ifdef CONFIG_TRACE_PERFORMANCE
