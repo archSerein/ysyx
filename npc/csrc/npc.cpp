@@ -333,6 +333,9 @@ void cycle_count(void) {
 extern "C" void total_inst_count() {
     ++total_inst_cnt;
 }
+extern "C" void stall_count() {
+    ++stall_cnt;
+}
 #endif // CONFIG_TRACE_PERFORMANCE
 
 #ifdef CONFIG_YSYXSOC

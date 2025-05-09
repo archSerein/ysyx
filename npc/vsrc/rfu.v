@@ -175,12 +175,19 @@ module rfu (
       rfu_csr_addr,
       rfu_csr_wdata,
       rfu_snpc,
-      rfu_xret_flush,
-      rfu_excp_flush,
-      rfu_break_signal
+      rfu_xret_flush
     };
 
     assign rfu_ready_o = !valid || (valid && exu_ready_i && !stall);
     assign valid_o = valid && !stall && !branch_flush;
-    // assign rfu_excp_bus_o = deu_excp_bus;
+    assign rfu_excp_bus_o = deu_excp_bus;
+
+    `ifdef CONFIG_TRACE_PERFORMANCE
+      import "DPI-C" function void stall_count();
+      always @ (posedge clock) begin
+        if (stall && valid) begin
+          stall_count();
+        end
+      end
+    `endif
 endmodule
