@@ -21,7 +21,8 @@ module wbu (
     output [31:0]                   csr_mcause_o,
     output [31:0]                   csr_mepc_o,
 
-    output                          wbu_valid_o,
+    output [`FORWARD_BUS_WIDTH-1:0] wbu_forward_bus,
+
     output                          wbu_ready_o
 );
 
@@ -104,9 +105,14 @@ module wbu (
                           // lsu_excp_bus[15] ? `STORE_AMO_PAGE_FAULT :
 
     assign wbu_ready_o = 1'b1;
-    assign wbu_valid_o = valid;
     assign mret_flush = wbu_xret_flush && valid;
     assign excp_flush = has_excp && valid;
+
+    wire wbu_gpr_forward_valid;
+    wire wbu_csr_forward_valid;
+    assign wbu_gpr_forward_valid = valid && (wbu_rd != 5'b0) && rf_we_o;
+    assign wbu_csr_forward_valid = valid && csr_we_o;
+    assign wbu_forward_bus = { wbu_gpr_forward_valid, wbu_csr_forward_valid, 1'b0, wbu_rd, wbu_csr_addr, wbu_final_result, wbu_csr_wdata };
 
     reg [31:0]  cnt;
     always @(posedge clock) begin

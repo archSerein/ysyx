@@ -141,7 +141,6 @@ __attribute__((section("ssbl"))) __attribute__((used)) void _ssbl() {
   _trm_init();
 }
 
-/*
 __attribute__((used))
 static void info() {
     uint32_t mvendorid, marchid;
@@ -164,11 +163,10 @@ static void info() {
     // }
     printf("welcome to my riscv npc!\n");
 }
-*/
 
 void _trm_init() {
   _uart_init();
-  // info();
+  info();
   int ret = main(mainargs);
   halt(ret);
 }

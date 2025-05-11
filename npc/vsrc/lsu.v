@@ -22,12 +22,11 @@ module lsu (
     input                               bvalid_i,
     output                              bready_o,
 
+    output [`FORWARD_BUS_WIDTH-1:0]     lsu_forward_bus,
+
     output [`LSU_WBU_BUS_WIDTH-1:0]     lsu_wbu_bus_o,
     output [ 8:0]                       lsu_excp_bus_o,
     output                              lsu_ready_o,
-    output                              lsu_rd_valid_o,
-    output [ 4:0]                       lsu_rd_o,
-    output [11:0]                       lsu_csr_addr_o,
     output                              valid_o
 );
 
@@ -160,9 +159,14 @@ module lsu (
     assign bready_o = ms_mem_we && valid;
     assign rready_o = |ms_mem_re && valid;
 
-    assign lsu_rd_o = ms_rd;
-    assign lsu_csr_addr_o = ms_csr_addr;
+    wire stall;
+    assign stall = !resp_handshake_succ && !no_mem_resp;
+    wire lsu_gpr_forward_valid;
+    wire lsu_csr_forward_valid;
+    assign lsu_gpr_forward_valid = valid && (ms_rd != 5'b0) && ms_gr_we;
+    assign lsu_csr_forward_valid = valid && ms_csr_we;
+
     assign valid_o = condition;
-    assign lsu_rd_valid_o =  valid;
     assign lsu_ready_o = !valid || (condition && wbu_ready_i);
+    assign lsu_forward_bus = { lsu_gpr_forward_valid, lsu_csr_forward_valid, stall, ms_rd, ms_csr_addr, final_result, ms_csr_wdata };
 endmodule

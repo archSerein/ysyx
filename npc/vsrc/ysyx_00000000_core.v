@@ -128,18 +128,6 @@ module ysyx_00000000_core (
     wire deu_valid;
     wire exu_ready;
 
-    wire rfu_valid;
-    wire exu_valid;
-    wire lsu_valid;
-    wire lsu_rd_valid;
-    wire wbu_valid;
-    wire [4:0]  exu_rd;
-    wire [4:0]  lsu_rd;
-    wire [4:0]  rd;
-    wire [11:0] exu_csr_addr;
-    wire [11:0] lsu_csr_addr;
-    wire [11:0] csr_waddr;
-
     deu deu_module (
         .clock          (clock),
         .reset          (reset),
@@ -171,6 +159,10 @@ module ysyx_00000000_core (
     wire [31:0] csr_value;
 
     wire [`RFU_EXU_BUS_WIDTH-1:0] rfu_exu_bus;
+    wire rfu_valid;
+    wire [`FORWARD_BUS_WIDTH-1:0] exu_forward_bus;
+    wire [`FORWARD_BUS_WIDTH-1:0] lsu_forward_bus;
+    wire [`FORWARD_BUS_WIDTH-1:0] wbu_forward_bus;
 
     rfu rfu_module (
         .clock          (clock),
@@ -199,21 +191,16 @@ module ysyx_00000000_core (
         .rfu_exu_bus_o  (rfu_exu_bus),
         .rfu_excp_bus_o (rfu_excp_bus),
 
-        .exu_valid      (exu_valid),
-        .exu_rd         (exu_rd),
-        .exu_csr_addr   (exu_csr_addr),
-        .lsu_valid      (lsu_rd_valid),
-        .lsu_rd         (lsu_rd),
-        .lsu_csr_addr   (lsu_csr_addr),
-        .wbu_valid      (wbu_valid),
-        .wbu_rd         (rd),
-        .wbu_csr_addr   (csr_waddr),
+        .exu_forward_bus(exu_forward_bus),
+        .lsu_forward_bus(lsu_forward_bus),
+        .wbu_forward_bus(wbu_forward_bus),
 
         .rfu_ready_o    (rfu_ready),
         .valid_o        (rfu_valid)
     );
 
     wire [`EXU_LSU_BUS_WIDTH-1:0] exu_lsu_bus;
+    wire exu_valid;
     wire lsu_ready;
 
     exu exu_module (
@@ -243,16 +230,17 @@ module ysyx_00000000_core (
         .branch_flush   (branch_flush),
         .branch_target  (branch_target),
 
+        .exu_forward_bus(exu_forward_bus),
+
         .exu_excp_bus_o (exu_excp_bus),
         .exu_lsu_bus_o  (exu_lsu_bus),
         .exu_ready_o    (exu_ready),
-        .exu_rd_o       (exu_rd),
-        .exu_csr_addr_o (exu_csr_addr),
         .valid_o        (exu_valid)
     );
 
     // wire [31:0] mem_rdata;
     wire [`LSU_WBU_BUS_WIDTH-1:0] lsu_wbu_bus;
+    wire lsu_valid;
     wire wbu_ready;
 
     lsu lsu_module (
@@ -276,19 +264,20 @@ module ysyx_00000000_core (
         .bvalid_i       (lsu_bvalid),
         .bready_o       (lsu_bready),
 
+        .lsu_forward_bus(lsu_forward_bus),
+
         .lsu_excp_bus_o (lsu_excp_bus),
         .lsu_wbu_bus_o  (lsu_wbu_bus),
         .lsu_ready_o    (lsu_ready),
-        .lsu_rd_valid_o (lsu_rd_valid),
-        .lsu_rd_o       (lsu_rd),
-        .lsu_csr_addr_o (lsu_csr_addr),
         .valid_o        (lsu_valid)
     );
 
     wire [31:0] rf_wdata;
     wire rf_we;
+    wire [4:0]  rd;
     wire [31:0] csr_wdata;
     wire csr_we;
+    wire [11:0] csr_waddr;
 
     wbu wbu_module (
         .clock          (clock),
@@ -310,7 +299,8 @@ module ysyx_00000000_core (
         .csr_mcause_o   (csr_mcause_w),
         .csr_mepc_o     (csr_mepc_w),
 
-        .wbu_valid_o    (wbu_valid),
+        .wbu_forward_bus(wbu_forward_bus),
+
         .wbu_ready_o    (wbu_ready)
     );
 

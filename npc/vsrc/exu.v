@@ -30,11 +30,11 @@ module exu (
     output                              branch_flush,
     output [31:0]                       branch_target,
 
+    output  [`FORWARD_BUS_WIDTH-1:0]    exu_forward_bus,
+
     input                               lsu_ready_i,
     output [`EXU_LSU_BUS_WIDTH-1:0]     exu_lsu_bus_o,
     output [ 6:0]                       exu_excp_bus_o,
-    output [ 4:0]                       exu_rd_o,
-    output [11:0]                       exu_csr_addr_o,
     output                              valid_o
 );
 
@@ -217,10 +217,15 @@ module exu (
     assign idle = no_mem_req || handshake_success || handshake_state;
     assign valid_o = valid && idle;
     assign exu_ready_o = !valid || (valid_o && lsu_ready_i);
-    assign exu_rd_o = ex_rd;
-    assign exu_csr_addr_o = ex_csr_addr;
     assign exu_excp_bus_o = {rfu_excp_bus[4], store_amo_addr_misalign,
                               load_addr_misalign, rfu_excp_bus[3:0]};
+    wire stall;
+    assign stall = ex_res_from_mem && valid;
+    wire exu_gpr_forward_valid;
+    wire exu_csr_forward_valid;
+    assign exu_gpr_forward_valid = valid_o && (ex_rd != 5'b0) && ex_gr_we && !ex_res_from_mem;
+    assign exu_csr_forward_valid = valid_o && ex_csr_we;
+    assign exu_forward_bus = { exu_gpr_forward_valid, exu_csr_forward_valid, stall, ex_rd, ex_csr_addr, final_result, ex_csr_wdata };
 
     assign is_skip_difftest = (awvalid_o || arvalid_o) && (ex_alu_result[31:16] == 16'h1000 || ex_alu_result[31:16] == 16'h0200);
     `ifdef CONFIG_TRACE_PERFORMANCE
