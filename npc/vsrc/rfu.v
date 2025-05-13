@@ -123,16 +123,15 @@ module rfu (
     // bypass
     wire [31:0] rfu_rs1_value;
     wire [31:0] rfu_rs2_value;
-    wire [31:0] rfu_csr_value;
     wire exu_gpr_forword_valid;
     wire lsu_gpr_forward_valid;
     wire wbu_gpr_forward_valid;
-    wire exu_csr_forword_valid;
-    wire lsu_csr_forward_valid;
-    wire wbu_csr_forward_valid;
     wire exu_stall;
     wire lsu_stall;
     wire wbu_stall;
+    wire exu_valid;
+    wire lsu_valid;
+    wire wbu_valid;
     wire [ 4:0] exu_rd;
     wire [ 4:0] lsu_rd;
     wire [ 4:0] wbu_rd;
@@ -142,12 +141,9 @@ module rfu (
     wire [31:0] exu_forward_data;
     wire [31:0] lsu_forward_data;
     wire [31:0] wbu_forward_data;
-    wire [31:0] exu_forward_csr_data;
-    wire [31:0] lsu_forward_csr_data;
-    wire [31:0] wbu_forward_csr_data;
-    assign {exu_gpr_forword_valid, exu_csr_forword_valid, exu_stall, exu_rd, exu_csr_addr, exu_forward_data, exu_forward_csr_data} = exu_forward_bus;
-    assign {lsu_gpr_forward_valid, lsu_csr_forward_valid, lsu_stall, lsu_rd, lsu_csr_addr, lsu_forward_data, lsu_forward_csr_data} = lsu_forward_bus;
-    assign {wbu_gpr_forward_valid, wbu_csr_forward_valid, wbu_stall, wbu_rd, wbu_csr_addr, wbu_forward_data, wbu_forward_csr_data} = wbu_forward_bus;
+    assign {exu_gpr_forword_valid, exu_valid, exu_stall, exu_rd, exu_csr_addr, exu_forward_data} = exu_forward_bus;
+    assign {lsu_gpr_forward_valid, lsu_valid, lsu_stall, lsu_rd, lsu_csr_addr, lsu_forward_data} = lsu_forward_bus;
+    assign {wbu_gpr_forward_valid, wbu_valid, wbu_stall, wbu_rd, wbu_csr_addr, wbu_forward_data} = wbu_forward_bus;
     assign rfu_rs1_value  = (exu_gpr_forword_valid && !exu_stall && exu_rd ==
                               rfu_rs1_o) ?  exu_forward_data :
                             (lsu_gpr_forward_valid && !lsu_stall && lsu_rd ==
@@ -162,14 +158,10 @@ module rfu (
                             (wbu_gpr_forward_valid && !wbu_stall && wbu_rd ==
                               rfu_rs2_o) ?  wbu_forward_data :
                             rfu_rs2_value_i;
-    assign rfu_csr_value =  (exu_csr_forword_valid && !exu_stall && exu_csr_addr ==
-                              rfu_csr_addr_o) ?  exu_forward_csr_data :
-                            (lsu_csr_forward_valid && !lsu_stall && lsu_csr_addr ==
-                              rfu_csr_addr_o) ?  lsu_forward_csr_data :
-                            (wbu_csr_forward_valid && !wbu_stall && wbu_csr_addr ==
-                              rfu_csr_addr_o) ?  wbu_forward_csr_data :
-                            rfu_csr_value_i;
-    assign stall =  exu_stall | lsu_stall | wbu_stall;
+    assign stall =  (exu_stall | lsu_stall | wbu_stall) ||
+                    (exu_valid && (exu_csr_addr == rfu_csr_addr)) ||
+                    (lsu_valid && (lsu_csr_addr == rfu_csr_addr)) ||
+                    (wbu_valid && (wbu_csr_addr == rfu_csr_addr));
 
     wire        rfu_compare_result;
     wire [31:0] compare_src2;
@@ -185,18 +177,18 @@ module rfu (
     wire  [31:0]  rfu_src2_value;
     assign rfu_src1_value = rfu_src1_from_pre ? rfu_src1 : rfu_rs1_value;
     assign rfu_src2_value = rfu_src2_is_imm ? rfu_imm :
-                            rfu_src2_is_csr ? rfu_csr_value :
+                            rfu_src2_is_csr ? rfu_csr_value_i :
                             rfu_rs2_value;
     wire  [31:0]  rfu_final_result;
     assign rfu_final_result = rfu_jmp_flag ? rfu_snpc :
                               rfu_res_from_compare ? {31'b0, rfu_compare_result} :
-                              rfu_csr_value;
+                              rfu_csr_value_i;
 
     wire          rfu_res_from_pre;
     assign rfu_res_from_pre = rfu_jmp_flag | rfu_res_from_compare | rfu_res_from_csr;
 
     wire [31:0]  rfu_csr_wdata;
-    assign rfu_csr_wdata = rfu_csr_op ? rfu_rs1_value : rfu_rs1_value | rfu_csr_value;
+    assign rfu_csr_wdata = rfu_csr_op ? rfu_rs1_value : rfu_rs1_value | rfu_csr_value_i;
 
     wire         rfu_branch;
     assign rfu_branch = rfu_branch_taken & rfu_compare_result | rfu_jmp_flag;

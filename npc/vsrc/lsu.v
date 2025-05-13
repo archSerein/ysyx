@@ -162,11 +162,11 @@ module lsu (
     wire stall;
     assign stall = !resp_handshake_succ && !no_mem_resp;
     wire lsu_gpr_forward_valid;
-    wire lsu_csr_forward_valid;
+    wire lsu_valid;
     assign lsu_gpr_forward_valid = valid && (ms_rd != 5'b0) && ms_gr_we;
-    assign lsu_csr_forward_valid = valid && ms_csr_we;
+    assign lsu_valid = valid && ms_csr_we;
 
     assign valid_o = condition;
     assign lsu_ready_o = !valid || (condition && wbu_ready_i);
-    assign lsu_forward_bus = { lsu_gpr_forward_valid, lsu_csr_forward_valid, stall, ms_rd, ms_csr_addr, final_result, ms_csr_wdata };
+    assign lsu_forward_bus = { lsu_gpr_forward_valid, lsu_valid, stall, ms_rd, ms_csr_addr, final_result };
 endmodule

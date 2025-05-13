@@ -109,10 +109,10 @@ module wbu (
     assign excp_flush = has_excp && valid;
 
     wire wbu_gpr_forward_valid;
-    wire wbu_csr_forward_valid;
+    wire wbu_valid;
     assign wbu_gpr_forward_valid = valid && (wbu_rd != 5'b0) && rf_we_o;
-    assign wbu_csr_forward_valid = valid && csr_we_o;
-    assign wbu_forward_bus = { wbu_gpr_forward_valid, wbu_csr_forward_valid, 1'b0, wbu_rd, wbu_csr_addr, wbu_final_result, wbu_csr_wdata };
+    assign wbu_valid = valid && csr_we_o;
+    assign wbu_forward_bus = { wbu_gpr_forward_valid, wbu_valid, 1'b0, wbu_rd, wbu_csr_addr, wbu_final_result };
 
     reg [31:0]  cnt;
     always @(posedge clock) begin

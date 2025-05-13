@@ -222,10 +222,10 @@ module exu (
     wire stall;
     assign stall = ex_res_from_mem && valid;
     wire exu_gpr_forward_valid;
-    wire exu_csr_forward_valid;
+    wire exu_valid;
     assign exu_gpr_forward_valid = valid_o && (ex_rd != 5'b0) && ex_gr_we && !ex_res_from_mem;
-    assign exu_csr_forward_valid = valid_o && ex_csr_we;
-    assign exu_forward_bus = { exu_gpr_forward_valid, exu_csr_forward_valid, stall, ex_rd, ex_csr_addr, final_result, ex_csr_wdata };
+    assign exu_valid = valid && ex_csr_we;
+    assign exu_forward_bus = { exu_gpr_forward_valid, exu_valid, stall, ex_rd, ex_csr_addr, final_result };
 
     assign is_skip_difftest = (awvalid_o || arvalid_o) && (ex_alu_result[31:16] == 16'h1000 || ex_alu_result[31:16] == 16'h0200);
     `ifdef CONFIG_TRACE_PERFORMANCE
